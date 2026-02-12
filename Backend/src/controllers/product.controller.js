@@ -4,6 +4,7 @@ import APIFunctionality from '../utils/apiFunctionality.js';
 import HandleError from '../utils/handleError.js';
 // CREATE product
 export const createProduct = handleAsync(async (req, res, next) => {
+  req.body.user = req.user.id;
   const product = await Product.create(req.body);
   return res.status(201).json({
     message: 'Product created successfully',
