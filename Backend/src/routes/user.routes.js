@@ -1,6 +1,7 @@
 import express from 'express';
 import {
-  deleteUserbyId,
+  changePassword,
+  deleteUserById,
   getAllUsers,
   getUserById,
   loginUser,
@@ -11,7 +12,7 @@ import {
   updateProfile,
   verifyAccount,
 } from '../controllers/user.controller.js';
-import { isAdmin, isAuthenticateUser } from '../middleware/authentification.js';
+import { isAdmin, isAuthenticated } from '../middleware/authentification.js';
 
 const router = express.Router();
 //register user
@@ -23,21 +24,24 @@ router.post('/login', loginUser);
 //Logout user
 router.post('/logout', logoutUser);
 //reset password token request
-router.post('/resetToken', isAuthenticateUser, resetPasswordToken);
+router.post('/resetToken', isAuthenticated, resetPasswordToken);
 //reset Password
-router.put('/reset-password/:userId', isAuthenticateUser, resetPassword);
+router.put('/reset-password/:userId', isAuthenticated, resetPassword);
+
+router.put('/change-password', isAuthenticated, changePassword);
 // Route to update a user's profile and assign a role (only accessible to admin)
+
 router.put(
   '/update-user-role/:userId',
-  isAuthenticateUser,
+  isAuthenticated,
   isAdmin,
   updateProfile
 );
 //Get All users
-router.get('/', isAuthenticateUser, isAdmin, getAllUsers);
+router.get('/', isAuthenticated, isAdmin, getAllUsers);
 //Get user by id
-router.get('/:userId', isAuthenticateUser, isAdmin, getUserById);
+router.get('/:userId', isAuthenticated, isAdmin, getUserById);
 //Delete user
-router.delete('/delete/:userId', isAuthenticateUser, isAdmin, deleteUserbyId);
+router.delete('/delete/:userId', isAuthenticated, isAdmin, deleteUserById);
 
 export default router;

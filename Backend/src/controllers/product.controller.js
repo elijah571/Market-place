@@ -1,92 +1,286 @@
-import handleAsync from '../middleware/handleAsyncErrror.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Product } from '../models/product.model.js';
 import APIFunctionality from '../utils/apiFunctionality.js';
-import HandleError from '../utils/handleError.js';
-// CREATE product
-export const createProduct = handleAsync(async (req, res, next) => {
-  req.body.user = req.user.id;
+import { AppError } from '../utils/AppError.js';
+
+/* ===============================
+   CREATE PRODUCT
+================================= */
+export const createProduct = asyncHandler(async (req, res) => {
+  req.body.user = req.user._id;
+
   const product = await Product.create(req.body);
-  return res.status(201).json({
+
+  res.status(201).json({
+    status: 'success',
     message: 'Product created successfully',
     data: product,
   });
 });
 
-// GET all products
-export const getAllProducts = handleAsync(async (req, res, next) => {
+/* ===============================
+   GET ALL PRODUCTS (PUBLIC)
+================================= */
+export const getAllProducts = asyncHandler(async (req, res) => {
   const resultPerPage = Number(req.query.limit) || 8;
+  const page = Number(req.query.page) || 1;
 
   const apiFeatures = new APIFunctionality(Product.find(), req.query)
     .search()
     .filter();
 
-  const filterQuery = apiFeatures.query.clone();
-  const productCount = await filterQuery.countDocuments();
+  const filteredQuery = apiFeatures.query.clone();
+  const productCount = await filteredQuery.countDocuments();
 
   const totalPage = Math.ceil(productCount / resultPerPage);
-  const page = Number(req.query.page) || 1;
 
   if (page > totalPage && productCount > 0) {
-    return next(new HandleError("This page doesn't exist", 404));
+    throw new AppError("This page doesn't exist", 404);
   }
+
   apiFeatures.pagination(resultPerPage);
+
   const products = await apiFeatures.query;
 
-  if (!products || products.length === 0) {
-    return next(new HandleError('No Product Found', 404));
-  }
-
-  return res.status(200).json({
-    message: 'All products',
-    data: products,
+  res.status(200).json({
+    status: 'success',
+    results: products.length,
     productCount,
     resultPerPage,
     totalPage,
     currentPage: page,
+    data: products,
   });
 });
 
-// GET single product by ID
-export const getSingleProduct = handleAsync(async (req, res, next) => {
-  const { id } = req.params;
+/* ===============================
+   GET SINGLE PRODUCT
+================================= */
+export const getSingleProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: product,
+  });
+});
+
+/* ===============================
+   UPDATE PRODUCT
+================================= */
+export const updateProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+
+  const updatedProduct = await Product.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Product updated successfully',
+    data: updatedProduct,
+  });
+});
+
+/* ===============================
+   DELETE PRODUCT
+================================= */
+export const deleteProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+
+  await product.deleteOne();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Product deleted successfully',
+  });
+});
+
+/* ===============================
+   GET ADMIN PRODUCTS
+   (Same as public but without restriction)
+================================= */
+export const getAdminProducts = asyncHandler(async (req, res) => {
+  const resultPerPage = Number(req.query.limit) || 8;
+  const page = Number(req.query.page) || 1;
+
+  const apiFeatures = new APIFunctionality(Product.find(), req.query)
+    .search()
+    .filter();
+
+  const filteredQuery = apiFeatures.query.clone();
+  const productCount = await filteredQuery.countDocuments();
+  const totalPage = Math.ceil(productCount / resultPerPage);
+
+  if (page > totalPage && productCount > 0) {
+    throw new AppError("This page doesn't exist", 404);
+  }
+
+  apiFeatures.pagination(resultPerPage);
+  const products = await apiFeatures.query;
+
+  res.status(200).json({
+    status: 'success',
+    results: products.length,
+    productCount,
+    resultPerPage,
+    totalPage,
+    currentPage: page,
+    data: products,
+  });
+});
+
+/* ===============================
+   ADD / UPDATE REVIEW
+================================= */
+export const addReview = asyncHandler(async (req, res) => {
+  const { rating, comment, productId } = req.body;
+
+  if (!rating || !comment || !productId) {
+    throw new AppError('Rating, comment and productId are required', 400);
+  }
+
+  const product = await Product.findById(productId);
+
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+
+  const numericRating = Number(rating);
+
+  if (numericRating < 1 || numericRating > 5) {
+    throw new AppError('Rating must be between 1 and 5', 400);
+  }
+
+  // Check if user already reviewed
+  const existingReview = product.reviews.find(
+    (rev) => rev.user.toString() === req.user._id.toString()
+  );
+
+  if (existingReview) {
+    // Update review
+    existingReview.rating = numericRating;
+    existingReview.comment = comment;
+  } else {
+    // Add new review
+    product.reviews.push({
+      user: req.user._id,
+      name: req.user.name,
+      rating: numericRating,
+      comment,
+    });
+  }
+
+  // Recalculate ratings
+  product.numOfReviews = product.reviews.length;
+
+  const totalRating = product.reviews.reduce(
+    (sum, review) => sum + review.rating,
+    0
+  );
+
+  product.rating =
+    product.numOfReviews === 0
+      ? 0
+      : Number((totalRating / product.numOfReviews).toFixed(1));
+
+  await product.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: existingReview
+      ? 'Review updated successfully'
+      : 'Review added successfully',
+    data: product,
+  });
+});
+
+/* ===============================
+   GET PRODUCT REVIEWS
+================================= */
+export const getProductReviews = asyncHandler(async (req, res) => {
+  const { id } = req.query;
 
   const product = await Product.findById(id);
+
   if (!product) {
-    return res.status(404).json({ message: 'Product not found' });
+    throw new AppError('Product not found', 404);
   }
 
-  return res.status(200).json({
-    message: 'Single product',
-    data: product,
+  res.status(200).json({
+    status: 'success',
+    results: product.reviews.length,
+    reviews: product.reviews,
   });
 });
 
-//Update Prouct by id
+/* ===============================
+   DELETE REVIEW
+================================= */
+export const deleteReview = asyncHandler(async (req, res) => {
+  const { productId, reviewId } = req.query;
 
-export const updateProduct = handleAsync(async (req, res, next) => {
-  let product = await Product.findById(req.params.id);
+  const product = await Product.findById(productId);
+
   if (!product) {
-    return res.status(404).json({ message: 'Product not found' });
+    throw new AppError('Product not found', 404);
   }
 
-  product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-  return res.status(200).json({
-    message: ' product updated successfully',
-    data: product,
-  });
-});
+  const review = product.reviews.find(
+    (rev) => rev._id.toString() === reviewId.toString()
+  );
 
-export const deleteProduct = handleAsync(async (req, res, next) => {
-  let product = await Product.findById(req.params.id);
-  if (!product) {
-    return res.status(404).json({ message: 'Product not found' });
+  if (!review) {
+    throw new AppError('Review not found', 404);
   }
 
-  product = await Product.findByIdAndDelete(req.params.id);
-  return res.status(200).json({
-    message: ' product deleted successfully',
+  // Allow only review owner or admin
+  if (
+    review.user.toString() !== req.user._id.toString() &&
+    req.user.role !== 'admin'
+  ) {
+    throw new AppError('Not authorized to delete this review', 403);
+  }
+
+  // Remove review
+  product.reviews = product.reviews.filter(
+    (rev) => rev._id.toString() !== reviewId.toString()
+  );
+
+  // Recalculate ratings
+  product.numOfReviews = product.reviews.length;
+
+  const totalRating = product.reviews.reduce(
+    (sum, review) => sum + review.rating,
+    0
+  );
+
+  product.rating =
+    product.numOfReviews === 0
+      ? 0
+      : Number((totalRating / product.numOfReviews).toFixed(1));
+
+  await product.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Review deleted successfully',
   });
 });

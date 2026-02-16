@@ -1,18 +1,22 @@
-import HandleError from '../utils/handleError.js';
-
 const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
-  // Cast Error (Invalid Mongo ID)
+  if (process.env.NODE_ENV === 'development') {
+    return res.status(statusCode).json({
+      success: false,
+      message,
+      stack: err.stack,
+    });
+  }
+
   if (err.name === 'CastError') {
-    message = `Invalid resource ID: ${err.path}`;
+    message = `Invalid ID`;
     statusCode = 400;
   }
 
-  // Duplicate key error
   if (err.code === 11000) {
-    message = `Duplicate field value entered`;
+    message = 'Duplicate field value';
     statusCode = 400;
   }
 
