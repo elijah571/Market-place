@@ -14,19 +14,19 @@ import { isAdmin, isAuthenticated } from '../middleware/authentification.js';
 const router = express.Router();
 
 router
-  .route('/')
+  .route('/products')
   .post(isAuthenticated, isAdmin, createProduct)
-  .get(isAuthenticated, getAllProducts);
+  .get(getAllProducts);
 
 // ✅ Put specific route BEFORE dynamic route
 router.route('/review').put(isAuthenticated, addReview);
 router.route('/reviews').get(getProductReviews);
 router
-  .route('/reviews')
+  .route('/product/reviews')
   .get(getProductReviews)
   .delete(isAuthenticated, deleteReview);
 router
-  .route('/:id')
+  .route('/product/:id')
   .get(isAuthenticated, getSingleProduct)
   .put(isAuthenticated, isAdmin, updateProduct)
   .delete(isAuthenticated, isAdmin, deleteProduct);
