@@ -9,12 +9,12 @@ const Product = ({ product }) => {
     console.log(`Rating changed to: ${newRating}`);
   };
   return (
-    <Link to={product._id} className="product_id">
+    <Link to={`/product/${product._id}`} className="product_id">
       <div className="product-card">
         <img src={product.image[0]?.url} alt={product.name} />
         <div className="product-details">
           <h3 className="product-title">{product.name}</h3>
-          <p className="product-price">
+          <p className="home-price">
             <strong>Price</strong>
             {product.price}
           </p>

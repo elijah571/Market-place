@@ -18,16 +18,14 @@ router
   .post(isAuthenticated, isAdmin, createProduct)
   .get(getAllProducts);
 
-// ✅ Put specific route BEFORE dynamic route
-router.route('/review').put(isAuthenticated, addReview);
-router.route('/reviews').get(getProductReviews);
 router
   .route('/product/reviews')
+  .put(isAuthenticated, addReview)
   .get(getProductReviews)
   .delete(isAuthenticated, deleteReview);
 router
   .route('/product/:id')
-  .get(isAuthenticated, getSingleProduct)
+  .get(getSingleProduct)
   .put(isAuthenticated, isAdmin, updateProduct)
   .delete(isAuthenticated, isAdmin, deleteProduct);
 
