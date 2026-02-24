@@ -9,6 +9,7 @@ import { getProduct, removeErrors } from '../features/products/productSlice';
 import { toast } from 'react-toastify';
 import Loader from '../components/Loader';
 import { useLocation } from 'react-router-dom';
+import NoProduct from '../components/NoProduct';
 
 const Products = () => {
   const { loading, error, products } = useSelector((state) => state.product);
@@ -43,11 +44,15 @@ const Products = () => {
           {/* Render Categories */}
         </div>
         <div className="products-section">
-          <div className="products-product-container">
-            {products?.map((product) => (
-              <Product key={product?._id} product={product} />
-            ))}
-          </div>
+          {products.length > 0 ? (
+            <div className="products-product-container">
+              {products.map((product) => (
+                <Product key={product._id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <NoProduct />
+          )}
         </div>
       </div>
       <Footer />

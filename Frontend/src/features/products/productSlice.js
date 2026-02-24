@@ -66,6 +66,7 @@ const productSlice = createSlice({
       .addCase(getProduct.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Something went wrong';
+        state.products = [];
       });
     builder
       .addCase(getProductDetails.pending, (state) => {
