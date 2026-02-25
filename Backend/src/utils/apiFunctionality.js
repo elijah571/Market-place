@@ -13,8 +13,6 @@ class APIFunctionality {
         }
       : {};
 
-    console.log('Search filter:', keyword);
-
     this.query = this.query.find({ ...keyword });
     return this;
   }

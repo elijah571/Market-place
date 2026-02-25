@@ -19,16 +19,15 @@ const Home = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(getProduct());
+    dispatch(getProduct({}));
   }, [dispatch]);
 
   useEffect(() => {
     if (error) {
-      toast.error(error.message);
+      toast.error(error);
       dispatch(removeErrors());
     }
   }, [dispatch, error]);
-
   return (
     <>
       {loading ? (
@@ -42,8 +41,8 @@ const Home = () => {
             <h2 className="home-heading">Trending Now</h2>
             <div className="home-product-container">
               {products &&
-                products.map((product, index) => (
-                  <Product product={product} key={index} />
+                products.map((product) => (
+                  <Product product={product} key={product._id} />
                 ))}
             </div>
           </div>
