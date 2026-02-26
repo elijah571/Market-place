@@ -78,7 +78,7 @@ const Navbar = () => {
             </Link>
           </div>
           {!isAuthenticated && (
-            <Link to="/register" className="register-link">
+            <Link to="/signup" className="register-link">
               <PersonAdd className="icon" />
             </Link>
           )}

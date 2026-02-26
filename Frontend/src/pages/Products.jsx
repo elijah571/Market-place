@@ -34,7 +34,7 @@ const Products = () => {
     'Accessories',
     'Clothes',
     'Shoes',
-    'TVs',
+    'TVs ',
     'Cameras',
   ];
 
