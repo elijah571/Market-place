@@ -16,17 +16,36 @@ const Products = () => {
   const { loading, error, products, resultPerPage, productCount } = useSelector(
     (state) => state.product
   );
+
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
+
   const searchParams = new URLSearchParams(location.search);
   const keyword = searchParams.get('keyword');
   const pageFromURL = parseInt(searchParams.get('page'), 10) || 1;
+  const category = searchParams.get('category');
 
   const [currentPage, setCurrentPage] = useState(pageFromURL);
-  const navigate = useNavigate();
+
+  const categories = [
+    'Computers',
+    'Mobiles',
+    'Accessories',
+    'Clothes',
+    'Shoes',
+    'TVs',
+    'Cameras',
+  ];
+
+  // Sync state with URL page
   useEffect(() => {
-    dispatch(getProduct({ keyword, page: currentPage }));
-  }, [dispatch, keyword, currentPage]);
+    setCurrentPage(pageFromURL);
+  }, [pageFromURL]);
+
+  useEffect(() => {
+    dispatch(getProduct({ keyword, page: currentPage, category }));
+  }, [dispatch, keyword, currentPage, category]);
 
   useEffect(() => {
     if (error) {
@@ -44,13 +63,24 @@ const Products = () => {
       setCurrentPage(page);
 
       const newSearchParams = new URLSearchParams(location.search);
+
       if (page === 1) {
         newSearchParams.delete('page');
       } else {
         newSearchParams.set('page', page);
       }
+
       navigate(`?${newSearchParams.toString()}`);
     }
+  };
+
+  const handleCategory = (selectedCategory) => {
+    const newSearchParams = new URLSearchParams(location.search);
+
+    newSearchParams.set('category', selectedCategory);
+    newSearchParams.delete('page'); // reset pagination when category changes
+
+    navigate(`?${newSearchParams.toString()}`);
   };
 
   return (
@@ -60,8 +90,14 @@ const Products = () => {
       <div className="products-layout">
         <div className="filter-section">
           <h3 className="filter-heading">CATEGORIES</h3>
-          {/* Render Categories */}
+
+          {categories.map((cat) => (
+            <li key={cat} onClick={() => handleCategory(cat)}>
+              {cat}
+            </li>
+          ))}
         </div>
+
         <div className="products-section">
           {products.length > 0 ? (
             <div className="products-product-container">
@@ -72,14 +108,10 @@ const Products = () => {
           ) : (
             <NoProduct />
           )}
+
           <Pagination
             currentPage={currentPage}
             onPageChange={handlePageChange}
-            // activeClass = 'active',
-            // nextPageText = 'Next',
-            // prevPageText = 'Prev',
-            // firstPageText = '1st',
-            // lastPageText = 'Last',
           />
         </div>
       </div>
