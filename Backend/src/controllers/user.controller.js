@@ -5,6 +5,10 @@ import { sendResetEmail, sendVerificationEmail } from '../utils/sendMail.js';
 import { generateToken } from '../utils/token.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import {
+  uploadsToCloudinary,
+  deleteFromCloudinary,
+} from '../utils/cloudinary.js';
 
 const passwordOptions = {
   minLength: 6,
@@ -40,18 +44,46 @@ export const signUp = asyncHandler(async (req, res) => {
     throw new AppError('Email already exists', 400);
   }
 
+  /* ===============================
+     HASH PASSWORD
+  ================================= */
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  /* ===============================
+     EMAIL VERIFICATION TOKEN
+  ================================= */
   const verificationToken = Math.floor(
     100000 + Math.random() * 900000
   ).toString();
 
   const verificationTokenExpiresAt = Date.now() + 60 * 60 * 1000;
 
+  /* ===============================
+     AVATAR UPLOAD (NEW PART)
+  ================================= */
+  let avatarData = {
+    public_id: 'default_id',
+    url: 'default_url',
+  };
+
+  let uploadedImage = null;
+
+  if (req.file) {
+    uploadedImage = await uploadsToCloudinary(req.file.buffer, 'user_avatars');
+
+    avatarData = {
+      public_id: uploadedImage.public_id,
+      url: uploadedImage.secure_url,
+    };
+  }
+  /* ===============================
+     CREATE USER
+  ================================= */
   const user = await User.create({
     name,
     email,
     password: hashedPassword,
+    avatar: avatarData,
     verificationToken,
     verificationTokenExpiresAt,
   });
@@ -66,7 +98,6 @@ export const signUp = asyncHandler(async (req, res) => {
     user,
   });
 });
-
 /* ===============================
    VERIFY ACCOUNT
 ================================= */
@@ -233,18 +264,45 @@ export const updateProfile = asyncHandler(async (req, res) => {
     throw new AppError('User not found', 404);
   }
 
-  if (role && req.user.role !== 'Admin') {
+  /* ===============================
+     AVATAR UPLOAD
+  ================================= */
+  if (req.file) {
+    // delete old avatar if exists
+    if (user.avatar?.public_id && user.avatar.public_id !== 'default_id') {
+      await deleteFromCloudinary(user.avatar.public_id);
+    }
+
+    // upload new avatar
+    const uploadedImage = await uploadsToCloudinary(
+      req.file.buffer,
+      'user_avatars'
+    );
+
+    user.avatar = {
+      public_id: uploadedImage.public_id,
+      url: uploadedImage.secure_url,
+    };
+  }
+
+  /* ===============================
+     ROLE UPDATE
+  ================================= */
+  if (role && req.user.role !== 'admin') {
     throw new AppError('Only admins can update roles', 403);
   }
 
   if (role) {
-    const validRoles = ['Admin', 'Shipper', 'Carrier', 'user'];
+    const validRoles = ['admin', 'user'];
     if (!validRoles.includes(role)) {
       throw new AppError('Invalid role provided', 400);
     }
     user.role = role;
   }
 
+  /* ===============================
+     EMAIL UPDATE
+  ================================= */
   if (email) {
     if (!validator.isEmail(email)) {
       throw new AppError('Invalid email format', 400);

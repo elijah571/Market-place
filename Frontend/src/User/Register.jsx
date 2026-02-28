@@ -28,21 +28,22 @@ function Register() {
 
   const registerDataChange = (e) => {
     if (e.target.name === 'avatar') {
-      const reader = new FileReader();
+      const file = e.target.files[0];
 
+      setAvatar(file); // ✅ send real file to backend
+
+      // preview only
+      const reader = new FileReader();
       reader.onload = () => {
         if (reader.readyState === 2) {
           setAvatarPreview(reader.result);
-          setAvatar(reader.result);
         }
       };
-
-      reader.readAsDataURL(e.target.files[0]);
+      reader.readAsDataURL(file);
     } else {
       setUser({ ...user, [e.target.name]: e.target.value });
     }
   };
-
   const registerSubmit = (e) => {
     e.preventDefault();
 
@@ -52,10 +53,13 @@ function Register() {
     }
 
     const form = new FormData();
-    form.set('name', name);
-    form.set('email', email);
-    form.set('password', password);
-    form.set('avatar', avatar);
+    form.append('name', name);
+    form.append('email', email);
+    form.append('password', password);
+
+    if (avatar) {
+      form.append('avatar', avatar);
+    }
 
     dispatch(register(form));
   };
@@ -70,10 +74,13 @@ function Register() {
   useEffect(() => {
     if (success) {
       toast.success('Registration successful');
-      dispatch(removeSuccess());
-      navigate('/login');
+
+      setTimeout(() => {
+        dispatch(removeSuccess());
+        navigate('/login');
+      }, 1000); // small delay so toast + navigation work smoothly
     }
-  }, [dispatch, success, navigate]);
+  }, [success, dispatch, navigate]);
 
   if (loading) return <Loader />;
 

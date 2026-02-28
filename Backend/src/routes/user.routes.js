@@ -13,10 +13,11 @@ import {
   verifyAccount,
 } from '../controllers/user.controller.js';
 import { isAdmin, isAuthenticated } from '../middleware/authentification.js';
+import { upload } from '../middleware/upload.middleware.js';
 
 const router = express.Router();
 //register user
-router.post('/signup', signUp);
+router.post('/signup', upload.single('avatar'), signUp);
 //VERIFY ACCOUNT
 router.post('/verify-account', verifyAccount);
 //Login Account
