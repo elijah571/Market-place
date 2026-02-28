@@ -30,7 +30,7 @@ function Register() {
     if (e.target.name === 'avatar') {
       const file = e.target.files[0];
 
-      setAvatar(file); // ✅ send real file to backend
+      setAvatar(file);
 
       // preview only
       const reader = new FileReader();
@@ -70,17 +70,12 @@ function Register() {
       dispatch(removeErrors());
     }
   }, [dispatch, error]);
-
   useEffect(() => {
     if (success) {
-      toast.success('Registration successful');
-
-      setTimeout(() => {
-        dispatch(removeSuccess());
-        navigate('/login');
-      }, 1000); // small delay so toast + navigation work smoothly
+      navigate('/verify-email');
+      dispatch(removeSuccess());
     }
-  }, [success, dispatch, navigate]);
+  }, [dispatch, success, navigate]);
 
   if (loading) return <Loader />;
 

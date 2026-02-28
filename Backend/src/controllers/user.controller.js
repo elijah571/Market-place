@@ -76,6 +76,7 @@ export const signUp = asyncHandler(async (req, res) => {
       url: uploadedImage.secure_url,
     };
   }
+  
   /* ===============================
      CREATE USER
   ================================= */

@@ -39,6 +39,27 @@ export const login = createAsyncThunk(
     }
   }
 );
+
+// ---------------------
+// Verify Account
+// ---------------------
+export const verifyAccount = createAsyncThunk(
+  '/user/verifyAccount',
+  async (verificationToken, { rejectWithValue }) => {
+    try {
+      const { data } = await axios.post('/api/v1/users/verify-account', {
+        verificationToken,
+      });
+
+      return data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        return rejectWithValue(error.response.data.message);
+      }
+      return rejectWithValue(error.message);
+    }
+  }
+);
 // ---------------------
 // Slice
 // ---------------------
@@ -48,6 +69,7 @@ const initialState = {
   loading: false,
   error: null,
   success: false,
+  verifySuccess: false,
   isAuthenticated: false,
 };
 
@@ -61,13 +83,14 @@ const userSlice = createSlice({
     },
     removeSuccess: (state) => {
       state.success = false;
+      state.verifySuccess = false;
     },
     logout: (state) => {
       state.user = null;
       state.isAuthenticated = false;
       state.success = false;
       state.error = null;
-      localStorage.removeItem('token'); // optional if using token
+      localStorage.removeItem('token');
     },
   },
 
@@ -84,10 +107,8 @@ const userSlice = createSlice({
         state.user = action.payload.user;
         state.success = action.payload.success;
         state.isAuthenticated = true;
-
-        if (action.payload.token) {
+        if (action.payload.token)
           localStorage.setItem('token', action.payload.token);
-        }
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -120,6 +141,23 @@ const userSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.success = false;
+      });
+    // --- Verify Account ---
+    // --- Verify Account ---
+    builder
+      .addCase(verifyAccount.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.verifySuccess = false;
+      })
+      .addCase(verifyAccount.fulfilled, (state) => {
+        state.loading = false;
+        state.verifySuccess = true;
+      })
+      .addCase(verifyAccount.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Verification failed';
+        state.verifySuccess = false;
       });
   },
 });

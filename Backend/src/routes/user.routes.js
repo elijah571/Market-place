@@ -32,12 +32,7 @@ router.put('/reset-password/:userId', isAuthenticated, resetPassword);
 router.put('/change-password', isAuthenticated, changePassword);
 // Route to update a user's profile and assign a role (only accessible to admin)
 
-router.put(
-  '/update-user-role/:userId',
-  isAuthenticated,
-  isAdmin,
-  updateProfile
-);
+router.put('/update/profile/:userId', isAuthenticated, isAdmin, updateProfile);
 //Get All users
 router.get('/', isAuthenticated, isAdmin, getAllUsers);
 //Get user by id
