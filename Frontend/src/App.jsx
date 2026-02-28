@@ -6,7 +6,8 @@ import Products from './pages/Products';
 import Register from './User/Register';
 import Login from './User/Login';
 import Verify from './User/Verify';
-import VerifyEmail from './User/VerifyEmail';
+import ResetPasswordToken from './User/ResetPasswordToken';
+import ResetPassword from './User/ResetPassword';
 
 const App = () => {
   return (
@@ -19,8 +20,9 @@ const App = () => {
           <Route path="/products/:keywords" element={<Products />}></Route>
           <Route path="/signup" element={<Register />}></Route>
           <Route path="/login" element={<Login />}></Route>
-
           <Route path="/verify-email" element={<Verify />} />
+          <Route path="/resetToken" element={<ResetPasswordToken />} />
+          <Route path="/reset-password/:userId" element={<ResetPassword />} />
         </Routes>
       </Router>
     </div>

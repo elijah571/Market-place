@@ -8,7 +8,6 @@ import {
 } from '../features/users/userSlice';
 import '../UserStyles/Form.css';
 import { toast } from 'react-toastify';
-import Loader from '../components/Loader';
 
 const VerifyCode = () => {
   const dispatch = useDispatch();

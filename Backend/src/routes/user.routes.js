@@ -26,6 +26,7 @@ router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 //reset password token request
 router.post('/resetToken', isAuthenticated, resetPasswordToken);
+
 //reset Password
 router.put('/reset-password/:userId', isAuthenticated, resetPassword);
 

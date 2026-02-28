@@ -60,6 +60,71 @@ export const verifyAccount = createAsyncThunk(
     }
   }
 );
+
+// ---------------------
+// Send Reset Password Token
+// ---------------------
+export const sendResetToken = createAsyncThunk(
+  '/user/sendResetToken',
+  async (email, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('token');
+
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      const { data } = await axios.post(
+        '/api/v1/users/resetToken',
+        { email },
+        config
+      );
+
+      return data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        return rejectWithValue(error.response.data.message);
+      }
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// ---------------------
+// Reset Password
+// ---------------------
+export const resetPassword = createAsyncThunk(
+  '/user/resetPassword',
+  async ({ userId, resetToken, newPassword }, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('token');
+
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      const { data } = await axios.put(
+        `/api/v1/users/reset-password/${userId}`,
+        { resetToken, newPassword },
+        config
+      );
+
+      return data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        return rejectWithValue(error.response.data.message);
+      }
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 // ---------------------
 // Slice
 // ---------------------
@@ -70,9 +135,11 @@ const initialState = {
   error: null,
   success: false,
   verifySuccess: false,
+  resetTokenSent: false,
+  resetPasswordSuccess: false,
+  resetUserId: null,
   isAuthenticated: false,
 };
-
 const userSlice = createSlice({
   name: 'user',
   initialState,
@@ -84,6 +151,8 @@ const userSlice = createSlice({
     removeSuccess: (state) => {
       state.success = false;
       state.verifySuccess = false;
+      state.resetTokenSent = false;
+      state.resetPasswordSuccess = false;
     },
     logout: (state) => {
       state.user = null;
@@ -143,7 +212,6 @@ const userSlice = createSlice({
         state.success = false;
       });
     // --- Verify Account ---
-    // --- Verify Account ---
     builder
       .addCase(verifyAccount.pending, (state) => {
         state.loading = true;
@@ -158,6 +226,40 @@ const userSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Verification failed';
         state.verifySuccess = false;
+      });
+    // --- Send Reset Token ---
+    builder
+      .addCase(sendResetToken.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.resetTokenSent = false;
+      })
+      .addCase(sendResetToken.fulfilled, (state, action) => {
+        state.loading = false;
+        state.resetTokenSent = true;
+        state.resetUserId = action.payload.userId; // ✅ store userId
+      })
+      .addCase(sendResetToken.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to send reset token';
+        state.resetTokenSent = false;
+      });
+
+    // --- Reset Password ---
+    builder
+      .addCase(resetPassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.resetPasswordSuccess = false;
+      })
+      .addCase(resetPassword.fulfilled, (state) => {
+        state.loading = false;
+        state.resetPasswordSuccess = true;
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Password reset failed';
+        state.resetPasswordSuccess = false;
       });
   },
 });

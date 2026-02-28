@@ -76,7 +76,7 @@ export const signUp = asyncHandler(async (req, res) => {
       url: uploadedImage.secure_url,
     };
   }
-  
+
   /* ===============================
      CREATE USER
   ================================= */
@@ -175,7 +175,7 @@ export const logoutUser = asyncHandler(async (req, res) => {
   });
 });
 
-/* ===============================
+/* ======/* ===============================
    SEND RESET TOKEN
 ================================= */
 export const resetPasswordToken = asyncHandler(async (req, res) => {
@@ -203,10 +203,11 @@ export const resetPasswordToken = asyncHandler(async (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'Reset password token sent to email',
+    userId: user._id,
   });
 });
 
-/* ===============================
+/*=========================
    RESET PASSWORD
 ================================= */
 export const resetPassword = asyncHandler(async (req, res) => {
