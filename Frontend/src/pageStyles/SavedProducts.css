@@ -1,0 +1,49 @@
+.saved-products-page {
+  min-height: 100vh;
+  padding: 6.5rem 1.5rem 3rem;
+  background:
+    radial-gradient(circle at top left, rgba(248, 181, 177, 0.14), transparent 25%),
+    linear-gradient(180deg, rgba(46, 46, 60, 0.98), rgba(59, 59, 79, 0.98));
+}
+
+.saved-products-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.saved-products-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.saved-products-kicker {
+  color: var(--primary-light);
+  letter-spacing: 0.16rem;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.saved-products-header h1 {
+  color: var(--text-light);
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin-bottom: 0.75rem;
+}
+
+.saved-products-subtitle {
+  color: var(--text-secondary);
+  max-width: 620px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.saved-products-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.saved-products-empty {
+  padding-top: 1rem;
+}

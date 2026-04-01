@@ -2,17 +2,199 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Product } from '../models/product.model.js';
 import APIFunctionality from '../utils/apiFunctionality.js';
 import { AppError } from '../utils/AppError.js';
+import {
+  deleteFromCloudinary,
+  uploadsToCloudinary,
+} from '../utils/cloudinary.js';
+import { sendSuccess } from '../utils/response.js';
+
+const parseMaybeJson = (value, fallback = null) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value !== 'string') return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const pickFiles = (files, key) => {
+  if (!files) return [];
+  if (Array.isArray(files)) return files;
+  return files[key] || [];
+};
+
+const normalizeVariants = (
+  variants = [],
+  uploadedVariantImages = [],
+  existingVariants = []
+) => {
+  if (!Array.isArray(variants)) return [];
+
+  const normalized = [];
+  const duplicateKey = new Set();
+
+  variants.forEach((variant, idx) => {
+    const color = String(variant.color || '').trim().toLowerCase();
+    const size = String(variant.size || '').trim().toUpperCase();
+    const stock = Number.isFinite(Number(variant.stock))
+      ? Number(variant.stock)
+      : 0;
+    const priceDelta = Number.isFinite(Number(variant.priceDelta))
+      ? Number(variant.priceDelta)
+      : 0;
+    const sku = (variant.sku || '').trim();
+    const attributes =
+      variant.attributes && typeof variant.attributes === 'object'
+        ? variant.attributes
+        : undefined;
+
+    const uploadedImage = uploadedVariantImages[idx];
+    const payloadImage =
+      variant.image && (variant.image.public_id || variant.image.url)
+        ? {
+            public_id: variant.image.public_id || '',
+            url: variant.image.url || '',
+          }
+        : null;
+    const fallbackImage =
+      existingVariants[idx] && existingVariants[idx].image
+        ? existingVariants[idx].image
+        : null;
+
+    const chosenImage = uploadedImage || payloadImage || fallbackImage || null;
+
+    const hasContent =
+      color ||
+      size ||
+      stock > 0 ||
+      priceDelta !== 0 ||
+      sku ||
+      (attributes && Object.keys(attributes).length > 0) ||
+      Boolean(chosenImage);
+
+    if (!hasContent) {
+      return;
+    }
+
+    if (color && size) {
+      const key = `${color}_${size}`;
+      if (duplicateKey.has(key)) {
+        throw new AppError(
+          `Duplicate variant combination found: ${color}/${size}`,
+          400
+        );
+      }
+      duplicateKey.add(key);
+    }
+
+    normalized.push({
+      color,
+      size,
+      attributes,
+      stock,
+      priceDelta,
+      sku,
+      image: chosenImage || { public_id: '', url: '' },
+    });
+  });
+
+  return normalized;
+};
+
+const uploadImages = async (files = [], folder) => {
+  const uploaded = [];
+
+  for (const file of files) {
+    const image = await uploadsToCloudinary(file.buffer, folder);
+    uploaded.push({
+      public_id: image.public_id,
+      url: image.secure_url,
+    });
+  }
+
+  return uploaded;
+};
+
+const uploadProductImages = (files = []) =>
+  uploadImages(files, 'product_images');
+
+const uploadVariantImages = (files = []) =>
+  uploadImages(files, 'variant_images');
+
+const cleanupUploadedImages = async (images = []) => {
+  if (!images.length) return;
+  await Promise.all(
+    images
+      .filter((img) => img.public_id)
+      .map((img) => deleteFromCloudinary(img.public_id).catch(() => null))
+  );
+};
+
+const productListProjection =
+  'name price image rating numOfReviews category stock colors sizes variants createdAt viewCount';
 
 /* ===============================
    CREATE PRODUCT
 ================================= */
 export const createProduct = asyncHandler(async (req, res) => {
+  const parsedVariants = parseMaybeJson(req.body.variants, req.body.variants);
+  const parsedImages = parseMaybeJson(req.body.image, req.body.image);
+
   req.body.user = req.user._id;
+  const productFiles = pickFiles(req.files, 'images');
+  const variantFiles = pickFiles(req.files, 'variantImages');
 
-  const product = await Product.create(req.body);
+  let uploadedImages = [];
+  let uploadedVariantImages = [];
+  if (productFiles.length > 0) {
+    try {
+      uploadedImages = await uploadProductImages(productFiles);
+    } catch {
+      throw new AppError(
+        'Image upload timed out. Please retry with smaller images.',
+        504
+      );
+    }
+  }
 
-  res.status(201).json({
-    status: 'success',
+  if (variantFiles.length > 0) {
+    try {
+      uploadedVariantImages = await uploadVariantImages(variantFiles);
+    } catch {
+      throw new AppError(
+        'Variant image upload timed out. Please retry with smaller images.',
+        504
+      );
+    }
+  }
+
+  req.body.variants = normalizeVariants(
+    parsedVariants,
+    uploadedVariantImages,
+    []
+  );
+
+  const imagePayload = Array.isArray(parsedImages) ? parsedImages : [];
+  req.body.image = uploadedImages.length
+    ? uploadedImages
+    : imagePayload;
+
+  if (!req.body.image?.length) {
+    throw new AppError('At least one product image is required', 400);
+  }
+
+  let product;
+  try {
+    product = await Product.create(req.body);
+  } catch (error) {
+    await cleanupUploadedImages([...uploadedImages, ...uploadedVariantImages]);
+    throw error;
+  }
+
+  return sendSuccess(res, {
+    status: 201,
     message: 'Product created successfully',
     data: product,
   });
@@ -22,15 +204,17 @@ export const createProduct = asyncHandler(async (req, res) => {
    GET ALL PRODUCTS (PUBLIC)
 ================================= */
 export const getAllProducts = asyncHandler(async (req, res) => {
-  const resultPerPage = Number(req.query.limit) || 8;
-  const page = Number(req.query.page) || 1;
+  const resultPerPage = Math.min(Number(req.query.limit) || 8, 50);
+  const page = Math.max(Number(req.query.page) || 1, 1);
 
-  const apiFeatures = new APIFunctionality(Product.find(), req.query)
+  const apiFeatures = new APIFunctionality(
+    Product.find().select(productListProjection),
+    req.query
+  )
     .search()
     .filter();
 
-  const filteredQuery = apiFeatures.query.clone();
-  const productCount = await filteredQuery.countDocuments();
+  const productCount = await Product.countDocuments(apiFeatures.query.getFilter());
 
   const totalPage = Math.ceil(productCount / resultPerPage);
 
@@ -38,18 +222,19 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     throw new AppError("This page doesn't exist", 404);
   }
 
-  apiFeatures.pagination(resultPerPage);
+  apiFeatures.sort().pagination(resultPerPage);
 
-  const products = await apiFeatures.query;
+  const products = await apiFeatures.query.lean();
 
-  res.status(200).json({
-    status: 'success',
-    results: products.length,
-    productCount,
-    resultPerPage,
-    totalPage,
-    currentPage: page,
+  return sendSuccess(res, {
     data: products,
+    meta: {
+      results: products.length,
+      productCount,
+      resultPerPage,
+      totalPage,
+      currentPage: page,
+    },
   });
 });
 
@@ -57,16 +242,17 @@ export const getAllProducts = asyncHandler(async (req, res) => {
    GET SINGLE PRODUCT
 ================================= */
 export const getSingleProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
+  const product = await Product.findByIdAndUpdate(
+    req.params.id,
+    { $inc: { viewCount: 1 } },
+    { new: true, runValidators: false }
+  ).lean();
 
   if (!product) {
     throw new AppError('Product not found', 404);
   }
 
-  res.status(200).json({
-    status: 'success',
-    data: product,
-  });
+  return sendSuccess(res, { data: product });
 });
 
 /* ===============================
@@ -79,6 +265,79 @@ export const updateProduct = asyncHandler(async (req, res) => {
     throw new AppError('Product not found', 404);
   }
 
+  const parsedVariants = parseMaybeJson(req.body.variants, req.body.variants);
+  const parsedImages = parseMaybeJson(req.body.image, req.body.image);
+  const productFiles = pickFiles(req.files, 'images');
+  const variantFiles = pickFiles(req.files, 'variantImages');
+  const existingVariants = Array.isArray(product.variants)
+    ? product.variants
+    : [];
+
+  let uploadedVariantImages = [];
+  if (variantFiles.length > 0) {
+    try {
+      uploadedVariantImages = await uploadVariantImages(variantFiles);
+    } catch {
+      throw new AppError(
+        'Variant image upload timed out. Please retry with smaller images.',
+        504
+      );
+    }
+  }
+
+  if (parsedVariants) {
+    req.body.variants = normalizeVariants(
+      parsedVariants,
+      uploadedVariantImages,
+      existingVariants
+    );
+  }
+
+  const oldVariantImagesToCleanup = [];
+  if (uploadedVariantImages.length > 0 && existingVariants.length > 0) {
+    uploadedVariantImages.forEach((_, idx) => {
+      const oldImg = existingVariants[idx]?.image;
+      if (oldImg?.public_id) {
+        oldVariantImagesToCleanup.push(oldImg);
+      }
+    });
+  }
+
+  if (productFiles.length > 0) {
+    let uploadedImages = [];
+    try {
+      uploadedImages = await uploadProductImages(productFiles);
+    } catch {
+      throw new AppError(
+        'Image upload timed out. Please retry with smaller images.',
+        504
+      );
+    }
+
+    req.body.image = uploadedImages;
+
+    const oldImages = Array.isArray(product.image) ? [...product.image] : [];
+
+    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (oldVariantImagesToCleanup.length > 0) {
+      await cleanupUploadedImages(oldVariantImagesToCleanup);
+    }
+    await cleanupUploadedImages(oldImages);
+
+    return sendSuccess(res, {
+      message: 'Product updated successfully',
+      data: updatedProduct,
+    });
+  }
+
+  if (parsedImages) {
+    req.body.image = parsedImages;
+  }
+
   const updatedProduct = await Product.findByIdAndUpdate(
     req.params.id,
     req.body,
@@ -88,8 +347,11 @@ export const updateProduct = asyncHandler(async (req, res) => {
     }
   );
 
-  res.status(200).json({
-    status: 'success',
+  if (oldVariantImagesToCleanup.length > 0) {
+    await cleanupUploadedImages(oldVariantImagesToCleanup);
+  }
+
+  return sendSuccess(res, {
     message: 'Product updated successfully',
     data: updatedProduct,
   });
@@ -107,10 +369,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 
   await product.deleteOne();
 
-  res.status(200).json({
-    status: 'success',
-    message: 'Product deleted successfully',
-  });
+  return sendSuccess(res, { message: 'Product deleted successfully' });
 });
 
 /* ===============================
@@ -118,32 +377,32 @@ export const deleteProduct = asyncHandler(async (req, res) => {
    (Same as public but without restriction)
 ================================= */
 export const getAdminProducts = asyncHandler(async (req, res) => {
-  const resultPerPage = Number(req.query.limit) || 8;
-  const page = Number(req.query.page) || 1;
+  const resultPerPage = Math.min(Number(req.query.limit) || 8, 100);
+  const page = Math.max(Number(req.query.page) || 1, 1);
 
   const apiFeatures = new APIFunctionality(Product.find(), req.query)
     .search()
     .filter();
 
-  const filteredQuery = apiFeatures.query.clone();
-  const productCount = await filteredQuery.countDocuments();
+  const productCount = await Product.countDocuments(apiFeatures.query.getFilter());
   const totalPage = Math.ceil(productCount / resultPerPage);
 
   if (page > totalPage && productCount > 0) {
     throw new AppError("This page doesn't exist", 404);
   }
 
-  apiFeatures.pagination(resultPerPage);
-  const products = await apiFeatures.query;
+  apiFeatures.sort().pagination(resultPerPage);
+  const products = await apiFeatures.query.lean();
 
-  res.status(200).json({
-    status: 'success',
-    results: products.length,
-    productCount,
-    resultPerPage,
-    totalPage,
-    currentPage: page,
+  return sendSuccess(res, {
     data: products,
+    meta: {
+      results: products.length,
+      productCount,
+      resultPerPage,
+      totalPage,
+      currentPage: page,
+    },
   });
 });
 
@@ -203,8 +462,7 @@ export const addReview = asyncHandler(async (req, res) => {
 
   await product.save();
 
-  res.status(200).json({
-    status: 'success',
+  return sendSuccess(res, {
     message: existingReview
       ? 'Review updated successfully'
       : 'Review added successfully',
@@ -224,10 +482,9 @@ export const getProductReviews = asyncHandler(async (req, res) => {
     throw new AppError('Product not found', 404);
   }
 
-  res.status(200).json({
-    status: 'success',
-    results: product.reviews.length,
-    reviews: product.reviews,
+  return sendSuccess(res, {
+    data: product.reviews,
+    meta: { results: product.reviews.length },
   });
 });
 
@@ -279,8 +536,5 @@ export const deleteReview = asyncHandler(async (req, res) => {
 
   await product.save();
 
-  res.status(200).json({
-    status: 'success',
-    message: 'Review deleted successfully',
-  });
+  return sendSuccess(res, { message: 'Review deleted successfully' });
 });

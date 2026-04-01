@@ -1,21 +1,20 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import apiClient from '../../utils/apiClient';
+import { clearAccessToken, setAccessToken } from '../../utils/apiClient';
 
-// ---------------------
-// Async Thunks
-// ---------------------
+const normalizeWishlist = (wishlist = []) =>
+  wishlist
+    .map((entry) => (typeof entry === 'string' ? entry : entry?._id))
+    .filter(Boolean);
 
 export const register = createAsyncThunk(
   '/user/register',
   async (userData, { rejectWithValue }) => {
     try {
-      const { data } = await axios.post('/api/v1/users/signup', userData);
-      return data; // expecting { success: true, user: {...}, token? }
+      const { data } = await apiClient.post('/users/signup', userData);
+      return data;
     } catch (error) {
-      if (error.response && error.response.data) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
@@ -24,110 +23,130 @@ export const login = createAsyncThunk(
   '/user/login',
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const config = { headers: { 'Content-Type': 'application/json' } };
-      const { data } = await axios.post(
-        '/api/v1/users/login', // ✅ corrected
-        { email, password },
-        config
-      );
+      const { data } = await apiClient.post('/users/login', {
+        email,
+        password,
+      });
       return data;
     } catch (error) {
-      if (error.response && error.response.data) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
 
-// ---------------------
-// Verify Account
-// ---------------------
 export const verifyAccount = createAsyncThunk(
   '/user/verifyAccount',
   async (verificationToken, { rejectWithValue }) => {
     try {
-      const { data } = await axios.post('/api/v1/users/verify-account', {
+      const { data } = await apiClient.post('/users/verify-account', {
         verificationToken,
       });
-
       return data;
     } catch (error) {
-      if (error.response && error.response.data) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
 
-// ---------------------
-// Send Reset Password Token
-// ---------------------
 export const sendResetToken = createAsyncThunk(
   '/user/sendResetToken',
   async (email, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      };
-
-      const { data } = await axios.post(
-        '/api/v1/users/resetToken',
-        { email },
-        config
-      );
-
+      const { data } = await apiClient.post('/users/resetToken', { email });
       return data;
     } catch (error) {
-      if (error.response && error.response.data) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
 
-// ---------------------
-// Reset Password
-// ---------------------
 export const resetPassword = createAsyncThunk(
   '/user/resetPassword',
   async ({ userId, resetToken, newPassword }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      };
-
-      const { data } = await axios.put(
-        `/api/v1/users/reset-password/${userId}`,
-        { resetToken, newPassword },
-        config
-      );
-
+      const { data } = await apiClient.put(`/users/reset-password/${userId}`, {
+        resetToken,
+        newPassword,
+      });
       return data;
     } catch (error) {
-      if (error.response && error.response.data) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
 
-// ---------------------
-// Slice
-// ---------------------
+export const loadCurrentUser = createAsyncThunk(
+  '/user/loadCurrentUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.get('/users/me');
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const getWishlist = createAsyncThunk(
+  '/user/getWishlist',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.get('/users/me/wishlist');
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const toggleWishlist = createAsyncThunk(
+  '/user/toggleWishlist',
+  async (productId, { rejectWithValue }) => {
+    try {
+      await apiClient.post('/users/me/wishlist', { productId });
+      const { data } = await apiClient.get('/users/me/wishlist');
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const getRecentlyViewed = createAsyncThunk(
+  '/user/getRecentlyViewed',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.get('/users/me/recently-viewed');
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const trackRecentlyViewed = createAsyncThunk(
+  '/user/trackRecentlyViewed',
+  async (productId, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.post('/users/me/recently-viewed', { productId });
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const logoutUserApi = createAsyncThunk(
+  '/user/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.post('/users/logout');
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
 
 const initialState = {
   user: null,
@@ -139,7 +158,11 @@ const initialState = {
   resetPasswordSuccess: false,
   resetUserId: null,
   isAuthenticated: false,
+  wishlist: [],
+  wishlistProducts: [],
+  recentlyViewed: [],
 };
+
 const userSlice = createSlice({
   name: 'user',
   initialState,
@@ -159,12 +182,14 @@ const userSlice = createSlice({
       state.isAuthenticated = false;
       state.success = false;
       state.error = null;
-      localStorage.removeItem('token');
+      clearAccessToken();
+      state.wishlist = [];
+      state.wishlistProducts = [];
+      state.recentlyViewed = [];
     },
   },
 
   extraReducers: (builder) => {
-    // --- Register ---
     builder
       .addCase(register.pending, (state) => {
         state.loading = true;
@@ -174,10 +199,11 @@ const userSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.success = action.payload.success;
+        state.success = action.payload.status === 'success';
         state.isAuthenticated = true;
-        if (action.payload.token)
-          localStorage.setItem('token', action.payload.token);
+        setAccessToken(action.payload.accessToken);
+        state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
+        state.wishlistProducts = [];
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -185,24 +211,19 @@ const userSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.success = false;
-      });
-
-    // --- Login ---
-    builder
+      })
       .addCase(login.pending, (state) => {
         state.loading = true;
         state.error = null;
-        state.success = false;
       })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.success = action.payload.success;
+        state.success = action.payload.status === 'success';
         state.isAuthenticated = true;
-
-        if (action.payload.token) {
-          localStorage.setItem('token', action.payload.token);
-        }
+        setAccessToken(action.payload.accessToken);
+        state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
+        state.wishlistProducts = [];
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -210,9 +231,35 @@ const userSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.success = false;
-      });
-    // --- Verify Account ---
-    builder
+      })
+      .addCase(loadCurrentUser.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(loadCurrentUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;
+        state.isAuthenticated = true;
+        state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
+        state.wishlistProducts = [];
+      })
+      .addCase(loadCurrentUser.rejected, (state) => {
+        state.loading = false;
+        state.user = null;
+        state.isAuthenticated = false;
+        state.wishlist = [];
+        state.wishlistProducts = [];
+        state.recentlyViewed = [];
+      })
+      .addCase(logoutUserApi.fulfilled, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.success = false;
+        state.error = null;
+        clearAccessToken();
+        state.wishlist = [];
+        state.wishlistProducts = [];
+        state.recentlyViewed = [];
+      })
       .addCase(verifyAccount.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -226,9 +273,7 @@ const userSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Verification failed';
         state.verifySuccess = false;
-      });
-    // --- Send Reset Token ---
-    builder
+      })
       .addCase(sendResetToken.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -237,16 +282,13 @@ const userSlice = createSlice({
       .addCase(sendResetToken.fulfilled, (state, action) => {
         state.loading = false;
         state.resetTokenSent = true;
-        state.resetUserId = action.payload.userId; // ✅ store userId
+        state.resetUserId = action.payload.userId;
       })
       .addCase(sendResetToken.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to send reset token';
         state.resetTokenSent = false;
-      });
-
-    // --- Reset Password ---
-    builder
+      })
       .addCase(resetPassword.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -260,6 +302,33 @@ const userSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Password reset failed';
         state.resetPasswordSuccess = false;
+      })
+      .addCase(getWishlist.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getWishlist.fulfilled, (state, action) => {
+        state.loading = false;
+        state.wishlist = normalizeWishlist(action.payload.wishlist);
+        state.wishlistProducts = action.payload.wishlist || [];
+      })
+      .addCase(getWishlist.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Unable to load saved products';
+        state.wishlistProducts = [];
+      })
+      .addCase(toggleWishlist.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(toggleWishlist.fulfilled, (state, action) => {
+        state.wishlist = normalizeWishlist(action.payload.wishlist);
+        state.wishlistProducts = action.payload.wishlist || [];
+      })
+      .addCase(toggleWishlist.rejected, (state, action) => {
+        state.error = action.payload || 'Unable to update saved products';
+      })
+      .addCase(getRecentlyViewed.fulfilled, (state, action) => {
+        state.recentlyViewed = action.payload.recentlyViewed || [];
       });
   },
 });

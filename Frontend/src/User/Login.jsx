@@ -46,7 +46,7 @@ const Login = () => {
 
   useEffect(() => {
     if (success) {
-      toast.success('Registration successful');
+      toast.success('Login successful');
       dispatch(removeSuccess());
       navigate('/');
     }

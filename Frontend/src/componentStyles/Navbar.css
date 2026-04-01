@@ -112,6 +112,13 @@ button {
   align-items: center;
 }
 
+.wishlist-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .cart-badge {
   position: absolute;
   top: -8px;
@@ -129,10 +136,60 @@ button {
   padding: 0 0.25rem;
 }
 
+.wishlist-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: var(--primary-light);
+  color: var(--bg-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.25rem;
+}
+
+.saved-nav-link {
+  text-decoration: none;
+  color: var(--text-light);
+  background-color: rgba(248, 181, 177, 0.12);
+  border: 1px solid var(--primary-light);
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.saved-nav-link:hover {
+  background-color: rgba(248, 181, 177, 0.2);
+}
+
 .register-link {
   text-decoration: none;
   display: flex;
   align-items: center;
+}
+
+.admin-dashboard-link {
+  text-decoration: none;
+  color: var(--text-light);
+  background-color: var(--primary-main);
+  border: 1px solid var(--primary-light);
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.admin-dashboard-link:hover {
+  background-color: var(--primary-dark);
 }
 
 .register-btn {
@@ -199,6 +256,10 @@ button {
   }
   .navbar-icons {
     width: 300px;
+  }
+
+  .saved-nav-link span {
+    display: none;
   }
 }
 

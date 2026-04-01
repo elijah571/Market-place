@@ -1,10 +1,10 @@
 .create-product-container {
-  max-width: 600px;
+  max-width: 900px;
   margin: 100px auto 0;
-  padding: 20px;
+  padding: 24px;
   background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .form-title {
@@ -16,7 +16,7 @@
 .product-form {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 14px;
 }
 
 .form-input,
@@ -41,13 +41,14 @@
 .file-input-container {
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
 .image-preview-container {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 10px;
-  overflow-x: auto;
 }
 
 .image-preview {
@@ -55,6 +56,57 @@
   height: 100px;
   object-fit: cover;
   border-radius: 8px;
+}
+
+.preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.remove-preview-btn {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.variant-block {
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  padding: 14px;
+  background: #fafafa;
+}
+
+.variant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.variant-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.variant-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.variant-add-btn,
+.variant-remove-btn {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
 }
 
 .submit-btn {
@@ -88,5 +140,9 @@
 
   .product-form {
     gap: 10px;
+  }
+
+  .variant-row {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,7 +1,6 @@
 import React from 'react';
+import AdminUsers from '../pages/admin/AdminUsers';
 
-const GetUsers = () => {
-  return <div></div>;
-};
+const GetUsers = () => <AdminUsers />;
 
 export default GetUsers;

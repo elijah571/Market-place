@@ -1,26 +1,41 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import apiClient from '../../utils/apiClient';
 
 // All products
 export const getProduct = createAsyncThunk(
   'product/getProduct',
-  async ({ keyword, page = 1, category }, { rejectWithValue }) => {
+  async (
+    { keyword, page = 1, category, priceLte, ratingGte, sort },
+    { rejectWithValue }
+  ) => {
     try {
-      let link = '/api/v1/products?page=' + page;
+      const params = new URLSearchParams();
+      params.set('page', String(page));
 
       if (category) {
-        link += `&category=${category}`;
+        params.set('category', category);
       }
 
       if (keyword) {
-        link += `&keyword=${keyword}`;
+        params.set('keyword', keyword);
       }
 
-      const { data } = await axios.get(link);
-      console.log('Response', data);
+      if (priceLte !== undefined && priceLte !== null) {
+        params.set('price[lte]', String(priceLte));
+      }
+
+      if (ratingGte !== undefined && ratingGte !== null) {
+        params.set('rating[gte]', String(ratingGte));
+      }
+
+      if (sort) {
+        params.set('sort', sort);
+      }
+
+      const { data } = await apiClient.get(`/products?${params.toString()}`);
       return data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'An error occurred');
+      return rejectWithValue(error.response?.data?.message || 'An error occurred');
     }
   }
 );
@@ -30,12 +45,11 @@ export const getProductDetails = createAsyncThunk(
   'product/getProductDetails',
   async (id, { rejectWithValue }) => {
     try {
-      const link = `/api/v1/product/${id}`;
-      const { data } = await axios.get(link);
-      console.log('Response', data);
-      return data; // return the response
+      const link = `/product/${id}`;
+      const { data } = await apiClient.get(link);
+      return data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'An error occurred');
+      return rejectWithValue(error.response?.data?.message || 'An error occurred');
     }
   }
 );
@@ -65,13 +79,12 @@ const productSlice = createSlice({
         state.error = null;
       })
       .addCase(getProduct.fulfilled, (state, action) => {
-        console.log('Fulfilled action payload', action.payload);
         state.loading = false;
         state.error = null;
         state.products = action.payload.data;
-        state.productCount = action.payload.productCount;
-        state.resultPerPage = action.payload.resultPerPage;
-        state.totalPage = action.payload.totalPage;
+        state.productCount = action.payload.meta?.productCount || 0;
+        state.resultPerPage = action.payload.meta?.resultPerPage || 4;
+        state.totalPage = action.payload.meta?.totalPage || 0;
       })
       .addCase(getProduct.rejected, (state, action) => {
         state.loading = false;
@@ -84,7 +97,6 @@ const productSlice = createSlice({
         state.error = null;
       })
       .addCase(getProductDetails.fulfilled, (state, action) => {
-        console.log('Fulfilled action payload', action.payload);
         state.loading = false;
         state.error = null;
         state.product = action.payload.data;

@@ -1,17 +1,9 @@
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
-  if (process.env.NODE_ENV === 'development') {
-    return res.status(statusCode).json({
-      success: false,
-      message,
-      stack: err.stack,
-    });
-  }
-
   if (err.name === 'CastError') {
-    message = `Invalid ID`;
+    message = 'Invalid ID';
     statusCode = 400;
   }
 
@@ -20,10 +12,26 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 400;
   }
 
-  res.status(statusCode).json({
+  if (err.name === 'JsonWebTokenError') {
+    message = 'Invalid authentication token';
+    statusCode = 401;
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    message = 'Authentication token has expired';
+    statusCode = 401;
+  }
+
+  const payload = {
     success: false,
     message,
-  });
+  };
+
+  if (process.env.NODE_ENV === 'development') {
+    payload.stack = err.stack;
+  }
+
+  res.status(statusCode).json(payload);
 };
 
 export default errorHandler;

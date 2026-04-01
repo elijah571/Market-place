@@ -1,14 +1,21 @@
 import { User } from '../models/user.model.js';
+import { Product } from '../models/product.model.js';
 import bcrypt from 'bcryptjs';
 import validator from 'validator';
 import { sendResetEmail, sendVerificationEmail } from '../utils/sendMail.js';
-import { generateToken } from '../utils/token.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import {
   uploadsToCloudinary,
   deleteFromCloudinary,
 } from '../utils/cloudinary.js';
+import {
+  clearAuthCookies,
+  getRefreshTokenFromRequest,
+  hashToken,
+  issueAuthTokens,
+  verifyRefreshToken,
+} from '../utils/token.js';
 
 const passwordOptions = {
   minLength: 6,
@@ -23,12 +30,13 @@ const passwordOptions = {
 ================================= */
 export const signUp = asyncHandler(async (req, res) => {
   const { email, name, password } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
 
   if (!email || !name || !password) {
     throw new AppError('All fields are required', 400);
   }
 
-  if (!validator.isEmail(email)) {
+  if (!validator.isEmail(normalizedEmail)) {
     throw new AppError('Invalid email format', 400);
   }
 
@@ -39,7 +47,7 @@ export const signUp = asyncHandler(async (req, res) => {
     );
   }
 
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email: normalizedEmail });
   if (existingUser) {
     throw new AppError('Email already exists', 400);
   }
@@ -82,16 +90,16 @@ export const signUp = asyncHandler(async (req, res) => {
   ================================= */
   const user = await User.create({
     name,
-    email,
+    email: normalizedEmail,
     password: hashedPassword,
     avatar: avatarData,
     verificationToken,
     verificationTokenExpiresAt,
   });
 
-  await sendVerificationEmail(email, verificationToken);
+  await sendVerificationEmail(normalizedEmail, verificationToken);
 
-  user.password = undefined;
+  await issueAuthTokens(res, user);
 
   res.status(201).json({
     status: 'success',
@@ -132,12 +140,15 @@ export const verifyAccount = asyncHandler(async (req, res) => {
 ================================= */
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
 
   if (!email || !password) {
     throw new AppError('Email and password are required', 400);
   }
 
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    '+password +tokenVersion'
+  );
 
   if (!user) {
     throw new AppError('Invalid email or password', 400);
@@ -149,7 +160,11 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new AppError('Invalid email or password', 400);
   }
 
-  generateToken(res, user._id);
+  if (!user.isVerified) {
+    throw new AppError('Verify your account before login', 403);
+  }
+
+  await issueAuthTokens(res, user);
 
   user.password = undefined;
 
@@ -164,14 +179,76 @@ export const loginUser = asyncHandler(async (req, res) => {
    LOGOUT
 ================================= */
 export const logoutUser = asyncHandler(async (req, res) => {
-  res.cookie('token', '', {
-    httpOnly: true,
-    expires: new Date(0),
-  });
+  const refreshToken = getRefreshTokenFromRequest(req);
+
+  if (refreshToken) {
+    const tokenHash = hashToken(refreshToken);
+    await User.findOneAndUpdate(
+      { refreshTokenHash: tokenHash },
+      {
+        $set: {
+          refreshTokenHash: '',
+          refreshTokenExpiresAt: null,
+        },
+        $inc: { tokenVersion: 1 },
+      }
+    );
+  }
+
+  clearAuthCookies(res);
 
   res.status(200).json({
     status: 'success',
     message: 'Logged out successfully',
+  });
+});
+
+/* ===============================
+   REFRESH TOKEN
+================================= */
+export const refreshAuthToken = asyncHandler(async (req, res) => {
+  const refreshToken = getRefreshTokenFromRequest(req);
+
+  if (!refreshToken) {
+    throw new AppError('Refresh token is required', 401);
+  }
+
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(refreshToken);
+  } catch {
+    throw new AppError('Invalid refresh token', 401);
+  }
+
+  if (decoded.type !== 'refresh') {
+    throw new AppError('Invalid token type', 401);
+  }
+
+  const tokenHash = hashToken(refreshToken);
+
+  const user = await User.findById(decoded.userId).select(
+    '+refreshTokenHash +refreshTokenExpiresAt +tokenVersion'
+  );
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (
+    decoded.tokenVersion !== user.tokenVersion ||
+    !user.refreshTokenHash ||
+    user.refreshTokenHash !== tokenHash ||
+    !user.refreshTokenExpiresAt ||
+    user.refreshTokenExpiresAt < Date.now()
+  ) {
+    throw new AppError('Refresh token expired or revoked', 401);
+  }
+
+  await issueAuthTokens(res, user);
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Session refreshed successfully',
   });
 });
 
@@ -180,12 +257,13 @@ export const logoutUser = asyncHandler(async (req, res) => {
 ================================= */
 export const resetPasswordToken = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
 
   if (!email) {
     throw new AppError('Email is required', 400);
   }
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: normalizedEmail });
 
   if (!user) {
     throw new AppError('User does not exist', 404);
@@ -198,7 +276,7 @@ export const resetPasswordToken = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  await sendResetEmail(email, resetToken);
+  await sendResetEmail(normalizedEmail, resetToken);
 
   res.status(200).json({
     status: 'success',
@@ -225,7 +303,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     );
   }
 
-  const user = await User.findById(userId).select('+password');
+  const user = await User.findById(userId).select('+tokenVersion');
 
   if (!user) {
     throw new AppError('User not found', 404);
@@ -244,6 +322,9 @@ export const resetPassword = asyncHandler(async (req, res) => {
   user.password = hashedPassword;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpiresAt = undefined;
+  user.refreshTokenHash = '';
+  user.refreshTokenExpiresAt = null;
+  user.tokenVersion += 1;
 
   await user.save();
 
@@ -382,6 +463,229 @@ export const deleteUserById = asyncHandler(async (req, res) => {
 });
 
 /* ===============================
+   GET MY PROFILE
+================================= */
+export const getMyProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('-password').lean();
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  res.status(200).json({
+    status: 'success',
+    user,
+  });
+});
+
+/* ===============================
+   UPDATE MY PROFILE
+================================= */
+export const updateMyProfile = asyncHandler(async (req, res) => {
+  const { name, email } = req.body;
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (email) {
+    if (!validator.isEmail(email)) {
+      throw new AppError('Invalid email format', 400);
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser && existingUser._id.toString() !== req.user._id.toString()) {
+      throw new AppError('Email already taken', 400);
+    }
+
+    user.email = email;
+  }
+
+  if (name) {
+    user.name = name;
+  }
+
+  if (req.file) {
+    if (user.avatar?.public_id && user.avatar.public_id !== 'default_id') {
+      await deleteFromCloudinary(user.avatar.public_id);
+    }
+
+    const uploadedImage = await uploadsToCloudinary(
+      req.file.buffer,
+      'user_avatars'
+    );
+
+    user.avatar = {
+      public_id: uploadedImage.public_id,
+      url: uploadedImage.secure_url,
+    };
+  }
+
+  await user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Profile updated successfully',
+    user,
+  });
+});
+
+/* ===============================
+   ADDRESS BOOK
+================================= */
+export const addAddress = asyncHandler(async (req, res) => {
+  const { label, country, state, city, address, pinCode, phoneNo } = req.body;
+  const user = await User.findById(req.user._id);
+  if (!user) throw new AppError('User not found', 404);
+
+  user.addresses.push({
+    label: label || '',
+    country,
+    state,
+    city,
+    address,
+    pinCode,
+    phoneNo,
+  });
+
+  await user.save({ validateBeforeSave: false });
+
+  res.status(201).json({
+    status: 'success',
+    message: 'Address added',
+    addresses: user.addresses,
+  });
+});
+
+export const updateAddress = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  const user = await User.findById(req.user._id);
+  if (!user) throw new AppError('User not found', 404);
+  const address = user.addresses.id(id);
+  if (!address) throw new AppError('Address not found', 404);
+
+  Object.assign(address, updates);
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Address updated',
+    addresses: user.addresses,
+  });
+});
+
+export const removeAddress = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findById(req.user._id);
+  if (!user) throw new AppError('User not found', 404);
+  const address = user.addresses.id(id);
+  if (!address) throw new AppError('Address not found', 404);
+
+  address.deleteOne();
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Address removed',
+    addresses: user.addresses,
+  });
+});
+
+/* ===============================
+   WISHLIST
+================================= */
+export const toggleWishlist = asyncHandler(async (req, res) => {
+  const { productId } = req.body;
+  if (!productId) throw new AppError('productId is required', 400);
+  const product = await Product.findById(productId).select('_id');
+  if (!product) throw new AppError('Product not found', 404);
+  const user = await User.findById(req.user._id);
+  if (!user) throw new AppError('User not found', 404);
+
+  const exists = user.wishlist.find(
+    (id) => id.toString() === String(productId)
+  );
+
+  if (exists) {
+    user.wishlist = user.wishlist.filter(
+      (id) => id.toString() !== String(productId)
+    );
+  } else {
+    user.wishlist.push(productId);
+  }
+
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    message: exists ? 'Removed from wishlist' : 'Added to wishlist',
+    wishlist: user.wishlist,
+  });
+});
+
+export const getWishlist = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+    .populate('wishlist', 'name price image rating')
+    .lean();
+  if (!user) throw new AppError('User not found', 404);
+  res.status(200).json({
+    status: 'success',
+    wishlist: user.wishlist || [],
+  });
+});
+
+export const trackRecentlyViewed = asyncHandler(async (req, res) => {
+  const { productId } = req.body;
+  const product = await Product.findById(productId).select('_id');
+
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+
+  const user = await User.findById(req.user._id);
+  if (!user) throw new AppError('User not found', 404);
+
+  const filtered = (user.recentlyViewed || []).filter(
+    (entry) => entry.product.toString() !== String(productId)
+  );
+
+  user.recentlyViewed = [
+    { product: product._id, viewedAt: new Date() },
+    ...filtered,
+  ].slice(0, 20);
+
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Recently viewed list updated',
+  });
+});
+
+export const getRecentlyViewed = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+    .populate('recentlyViewed.product', 'name price image rating category')
+    .lean();
+
+  if (!user) throw new AppError('User not found', 404);
+
+  const recentlyViewed = (user.recentlyViewed || [])
+    .filter((entry) => entry.product)
+    .map((entry) => ({
+      ...entry.product,
+      viewedAt: entry.viewedAt,
+    }));
+
+  res.status(200).json({
+    status: 'success',
+    recentlyViewed,
+  });
+});
+
+/* ===============================
    CHANGE PASSWORD
 ================================= */
 export const changePassword = asyncHandler(async (req, res) => {
@@ -402,7 +706,9 @@ export const changePassword = asyncHandler(async (req, res) => {
     );
   }
 
-  const user = await User.findById(req.user._id).select('+password');
+  const user = await User.findById(req.user._id).select(
+    '+password +tokenVersion'
+  );
 
   if (!user) {
     throw new AppError('User not found', 404);
@@ -421,6 +727,9 @@ export const changePassword = asyncHandler(async (req, res) => {
   }
 
   user.password = await bcrypt.hash(newPassword, 10);
+  user.refreshTokenHash = '';
+  user.refreshTokenExpiresAt = null;
+  user.tokenVersion += 1;
 
   await user.save();
 

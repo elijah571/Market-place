@@ -1,5 +1,53 @@
 import mongoose from 'mongoose';
 
+const productVariantSchema = new mongoose.Schema(
+  {
+    color: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: '',
+    },
+    size: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: '',
+    },
+    // Room for future attributes (e.g., material) without schema changes
+    attributes: {
+      type: Map,
+      of: String,
+      default: undefined,
+    },
+    stock: {
+      type: Number,
+      min: [0, 'Variant stock cannot be negative'],
+      default: 0,
+    },
+    priceDelta: {
+      type: Number,
+      default: 0,
+    },
+    sku: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    image: {
+      public_id: {
+        type: String,
+        default: '',
+      },
+      url: {
+        type: String,
+        default: '',
+      },
+    },
+  },
+  { _id: true }
+);
+
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -21,6 +69,11 @@ const productSchema = new mongoose.Schema(
     rating: {
       type: Number,
       default: 0,
+    },
+    viewCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     image: [
       {
@@ -45,6 +98,21 @@ const productSchema = new mongoose.Schema(
       maxlength: [5, 'Stock cannot exceed 5 digits'],
       default: 1,
     },
+    colors: [
+      {
+        type: String,
+        trim: true,
+        lowercase: true,
+      },
+    ],
+    sizes: [
+      {
+        type: String,
+        trim: true,
+        uppercase: true,
+      },
+    ],
+    variants: [productVariantSchema],
     numOfReviews: {
       type: Number,
       default: 0,
@@ -83,5 +151,34 @@ const productSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+productSchema.pre('save', function () {
+  if (!Array.isArray(this.variants) || this.variants.length === 0) {
+    return;
+  }
+
+  this.stock = this.variants.reduce(
+    (total, variant) => total + Math.max(0, Number(variant.stock || 0)),
+    0
+  );
+
+  const colors = this.variants
+    .map((variant) => (variant.color || '').trim().toLowerCase())
+    .filter(Boolean);
+  const sizes = this.variants
+    .map((variant) => (variant.size || '').trim().toUpperCase())
+    .filter(Boolean);
+
+  this.colors = [...new Set(colors)];
+  this.sizes = [...new Set(sizes)];
+});
+
+productVariantSchema.index({ color: 1, size: 1, sku: 1 });
+productSchema.index({ name: 'text', description: 'text', category: 1 });
+productSchema.index({ category: 1, createdAt: -1 });
+productSchema.index({ category: 1, rating: -1, price: 1, createdAt: -1 });
+productSchema.index({ price: 1 });
+productSchema.index({ stock: 1, createdAt: -1 });
+productSchema.index({ viewCount: -1, createdAt: -1 });
 
 export const Product = mongoose.model('Product', productSchema);

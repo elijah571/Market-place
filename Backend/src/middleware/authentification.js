@@ -1,28 +1,32 @@
-import jwt from 'jsonwebtoken';
 import { User } from '../models/user.model.js';
 import { asyncHandler } from './asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
+import { getAccessTokenFromRequest, verifyAccessToken } from '../utils/token.js';
 
 // Middleware to check if user is authenticated
 export const isAuthenticated = asyncHandler(async (req, res, next) => {
-  let token;
-
-  if (req.cookies?.token) {
-    token = req.cookies.token;
-  } else if (req.headers.authorization?.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
+  const token = getAccessTokenFromRequest(req);
 
   if (!token) {
     throw new AppError('Not authenticated', 401);
   }
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const decoded = verifyAccessToken(token);
 
-  const user = await User.findById(decoded.userId).select('-password');
+  if (decoded.type !== 'access') {
+    throw new AppError('Invalid token type', 401);
+  }
+
+  const user = await User.findById(decoded.userId).select(
+    '-password +tokenVersion'
+  );
 
   if (!user) {
     throw new AppError('User not found', 404);
+  }
+
+  if (decoded.tokenVersion !== user.tokenVersion) {
+    throw new AppError('Session expired. Please login again.', 401);
   }
 
   req.user = user;
@@ -30,18 +34,19 @@ export const isAuthenticated = asyncHandler(async (req, res, next) => {
 });
 
 // Admin has full access to everything, including Shipper routes
-export const isAdmin = async (req, res, next) => {
+export const isAdmin = asyncHandler(async (req, res, next) => {
   const user = req.user;
 
   if (!user) {
-    return res.status(403).json({ message: 'User is not authenticated' });
+    throw new AppError('User is not authenticated', 401);
   }
 
   if (user.role !== 'admin') {
-    return res
-      .status(403)
-      .json({ message: 'You do not have permission to access this resource' });
+    throw new AppError(
+      'You do not have permission to access this resource',
+      403
+    );
   }
 
   next();
-};
+});

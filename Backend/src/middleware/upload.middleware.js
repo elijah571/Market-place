@@ -76,6 +76,7 @@ export const upload = multer({
   storage,
   fileFilter: secureFileFilter,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB per file
+    // Keep this conservative to avoid memory pressure and third-party timeouts.
+    fileSize: Number(process.env.MAX_UPLOAD_FILE_SIZE || 5 * 1024 * 1024),
   },
 });

@@ -52,6 +52,22 @@ const orderSchema = new mongoose.Schema(
           ref: 'Product',
           required: true,
         },
+        selectedColor: {
+          type: String,
+          trim: true,
+          lowercase: true,
+          default: '',
+        },
+        selectedSize: {
+          type: String,
+          trim: true,
+          uppercase: true,
+          default: '',
+        },
+        variantId: {
+          type: mongoose.Schema.Types.ObjectId,
+          default: null,
+        },
       },
     ],
 
@@ -108,5 +124,8 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ orderStatus: 1, createdAt: -1 });
 
 export const Order = mongoose.model('Order', orderSchema);

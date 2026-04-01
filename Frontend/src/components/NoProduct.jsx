@@ -1,4 +1,5 @@
 import React from 'react';
+import '../componentStyles/NoProducts.css';
 
 const NoProduct = ({ keyword }) => {
   return (

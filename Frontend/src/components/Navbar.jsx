@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
 import '../componentStyles/Navbar.css';
+import '../pageStyles/Search.css';
 import { Link, useNavigate } from 'react-router-dom';
 import SearchIcon from '@mui/icons-material/Search';
-import { ShoppingCart, PersonAdd, Close, Menu } from '@mui/icons-material';
+import {
+  ShoppingCart,
+  PersonAdd,
+  Close,
+  Menu,
+  FavoriteBorder,
+  BookmarkBorder,
+} from '@mui/icons-material';
+import { useSelector } from 'react-redux';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,7 +22,10 @@ const Navbar = () => {
 
   const toggleSearch = () => setIsSearchOpen(!isSearchOpen);
   const navigate = useNavigate();
-  const isAuthenticated = false;
+  const { isAuthenticated, user, wishlist } = useSelector((state) => state.user);
+  const cartItemsCount = useSelector((state) =>
+    state.cart.items.reduce((sum, item) => sum + item.quantity, 0)
+  );
   const handleSearchSubmit = (e) => {
     if (searchQuery.trim()) {
       navigate(`/products?keyword=${encodeURIComponent(searchQuery.trim())}`);
@@ -34,21 +46,29 @@ const Navbar = () => {
         <div className={`navbar-links ${isMenuOpen ? 'active' : ''}`}>
           <ul>
             <li>
-              <Link to="/">Home</Link>
+              <Link to="/" onClick={() => setIsMenuOpen(false)}>
+                Home
+              </Link>
             </li>
             <li>
-              <Link to="/products">Products</Link>
+              <Link to="/products" onClick={() => setIsMenuOpen(false)}>
+                Products
+              </Link>
             </li>
             <li>
-              <Link to="/about-us">About Us</Link>
+              <Link to="/favorites" onClick={() => setIsMenuOpen(false)}>
+                Favorites
+              </Link>
             </li>
             <li>
-              <Link to="/contact-us">Contact Us</Link>
+              <Link to="/saved-products" onClick={() => setIsMenuOpen(false)}>
+                Saved Products
+              </Link>
             </li>
           </ul>
         </div>
         <div className="navbar-icons">
-          <div className="{search-container}">
+          <div className="search-container">
             <div className="search-item">
               <form
                 className={`search-form ${isSearchOpen ? 'active' : ''}`}
@@ -74,9 +94,30 @@ const Navbar = () => {
           <div className="cart-container">
             <Link to="/cart">
               <ShoppingCart className="icon" />
-              <span className="cart-badge">6</span>
+              <span className="cart-badge">{cartItemsCount}</span>
             </Link>
           </div>
+          {isAuthenticated && (
+            <>
+              <Link to="/favorites" className="wishlist-nav-link" aria-label="Favorite products">
+                <FavoriteBorder className="icon" />
+                <span className="wishlist-badge">{wishlist.length}</span>
+              </Link>
+              <Link
+                to="/saved-products"
+                className="saved-nav-link"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <BookmarkBorder className="icon" />
+                <span>Saved</span>
+              </Link>
+            </>
+          )}
+          {isAuthenticated && user?.role === 'admin' && (
+            <Link to="/admin/dashboard" className="admin-dashboard-link">
+              Dashboard
+            </Link>
+          )}
           {!isAuthenticated && (
             <Link to="/signup" className="register-link">
               <PersonAdd className="icon" />
