@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+const backendBaseUrl = (
+  import.meta.env.VITE_BASE_API ||
+  import.meta.env.BASE_API ||
+  'http://localhost:6000'
+).replace(/\/$/, '');
+
+const apiBaseUrl = `${backendBaseUrl}/api/v1`;
+
 const apiClient = axios.create({
-  baseURL: '/api/v1',
+  baseURL: apiBaseUrl,
   withCredentials: true,
 });
 
@@ -14,7 +22,7 @@ const refreshAccessToken = async () => {
   if (!refreshInFlight) {
     refreshInFlight = axios
       .post(
-        '/api/v1/users/refresh-token',
+        `${apiBaseUrl}/users/refresh-token`,
         {},
         {
           withCredentials: true,
