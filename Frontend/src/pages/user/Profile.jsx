@@ -2,9 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import '../../UserStyles/Profile.css';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
-import Footer from '../../components/Footer';
 import { addAddress, removeAddress, updateAddress } from '../../features/users/userSlice';
 import { toast } from 'react-toastify';
 
@@ -55,8 +53,7 @@ const Profile = () => {
   return (
     <>
       <PageTitle title="My Profile" />
-      <Navbar />
-      <div className="profile-container">
+      <div className="profile-container page-shell">
         <div className="profile-hero">
           <div className="profile-avatar-shell">
             {user?.avatar?.url ? (
@@ -206,7 +203,6 @@ const Profile = () => {
           </section>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

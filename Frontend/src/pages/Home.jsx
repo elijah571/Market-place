@@ -1,7 +1,5 @@
 import React, { useMemo, useRef } from 'react';
 import '../pageStyles/Home.css';
-import Footer from '../components/Footer';
-import Navbar from '../components/Navbar';
 import Product from '../components/Product';
 import PageTitle from '../components/PageTitle';
 import ImageSlider from '../components/ImageSlider';
@@ -101,7 +99,6 @@ const Home = () => {
   return (
     <>
       <PageTitle title="HOME" />
-      <Navbar />
       <div className="home-page">
         <section
           className="home-hero home-surface home-backdrop"
@@ -114,6 +111,11 @@ const Home = () => {
               Browse curated collections, save products you love, reuse saved addresses, and move
               from discovery to payment with a more visual shopping experience.
             </p>
+            <div className="home-hero-highlights" aria-label="Hero highlights">
+              <span>Fast checkout flow</span>
+              <span>Wishlist-first browsing</span>
+              <span>Curated collections</span>
+            </div>
             <div className="home-hero-actions">
               <Link to="/products" className="home-primary-btn">
                 Shop now
@@ -142,9 +144,17 @@ const Home = () => {
               className="hero-panel-card accent hero-panel-spotlight"
               style={{ '--spotlight-image': `url(${spotlightBackground})` }}
             >
-              <span>Storefront spotlight</span>
+              <div className="hero-panel-heading">
+                <span>Storefront spotlight</span>
+                <small>Updated shopping flow</small>
+              </div>
               <strong>Shoppable scenes with stronger visual rhythm</strong>
               <p>Top viewed and top rated products are surfaced automatically for faster discovery.</p>
+              <div className="hero-panel-meta">
+                <span>Top viewed</span>
+                <span>Top rated</span>
+                <span>Recently viewed</span>
+              </div>
             </div>
             <div className="hero-panel-grid">
               {sections.meta.categories.slice(0, 4).map((category) => (
@@ -153,6 +163,7 @@ const Home = () => {
                   to={`/products?category=${encodeURIComponent(category.label)}`}
                   className="hero-category-card"
                 >
+                  <small>Browse collection</small>
                   <strong>{category.label}</strong>
                   <span>{category.count} products</span>
                 </Link>
@@ -258,7 +269,6 @@ const Home = () => {
           )}
         </div>
       </div>
-      <Footer />
     </>
   );
 };

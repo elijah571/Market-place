@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import apiClient from '../../utils/apiClient';
 import '../../AdminStyles/OrdersList.css';
@@ -45,8 +44,7 @@ const AdminOrders = () => {
   return (
     <>
       <PageTitle title="Admin Orders" />
-      <Navbar />
-      <div className="ordersList-container">
+      <div className="ordersList-container page-shell">
         <h2 className="ordersList-title">Orders</h2>
 
         {loading ? (

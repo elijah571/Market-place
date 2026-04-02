@@ -64,7 +64,7 @@ const PaymentSuccess = () => {
   return (
     <>
       <PageTitle title="Payment Status" />
-      <div className="payment-success-container">
+      <div className="payment-success-container page-shell page-shell--narrow">
         <div className="success-content">
           <div className="success-icon">
             <span className="checkmark" />

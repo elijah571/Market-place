@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import '../../OrderStyles/OrderDetails.css';
-import Footer from '../../components/Footer';
 import { accountService } from '../../services/account.service';
 import { formatCurrency, formatDate, sentenceCase } from '../../utils/formatters';
 
@@ -33,8 +31,9 @@ const OrderDetails = () => {
   if (loading) {
     return (
       <>
-        <Navbar />
-        <p style={{ marginTop: '90px', textAlign: 'center' }}>Loading order...</p>
+        <div className="page-shell page-shell--narrow">
+          <p style={{ textAlign: 'center' }}>Loading order...</p>
+        </div>
       </>
     );
   }
@@ -42,8 +41,9 @@ const OrderDetails = () => {
   if (!order) {
     return (
       <>
-        <Navbar />
-        <p style={{ marginTop: '90px', textAlign: 'center' }}>Order not found</p>
+        <div className="page-shell page-shell--narrow">
+          <p style={{ textAlign: 'center' }}>Order not found</p>
+        </div>
       </>
     );
   }
@@ -53,8 +53,7 @@ const OrderDetails = () => {
   return (
     <>
       <PageTitle title={`Order ${order._id.slice(-6)}`} />
-      <Navbar />
-      <div className="order-box">
+      <div className="order-box page-shell">
         <div className="order-tracker">
           {orderStatuses.map((status, index) => (
             <div
@@ -165,7 +164,6 @@ const OrderDetails = () => {
           </div>
         ) : null}
       </div>
-      <Footer />
     </>
   );
 };

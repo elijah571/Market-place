@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDispatch, useSelector } from 'react-redux';
-import Navbar from '../components/Navbar';
 import PageTitle from '../components/PageTitle';
 import Loader from '../components/Loader';
 import apiClient from '../utils/apiClient';
@@ -45,7 +44,6 @@ const UpdateProfile = () => {
   return (
     <>
       <PageTitle title="Update Profile" />
-      <Navbar />
       <div className="form-container container">
         <div className="form-content">
           <form className="form" onSubmit={onSubmit}>

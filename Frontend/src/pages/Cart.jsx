@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import PageTitle from '../components/PageTitle';
 import '../CartStyles/Cart.css';
 import { useDispatch, useSelector } from 'react-redux';
@@ -128,14 +126,12 @@ const Cart = () => {
     return (
       <>
         <PageTitle title="Cart" />
-        <Navbar />
-        <div className="empty-cart-container">
+        <div className="empty-cart-container page-shell page-shell--narrow">
           <p className="empty-cart-message">Your cart is empty.</p>
           <Link to="/products" className="viewProducts">
             View Products
           </Link>
         </div>
-        <Footer />
       </>
     );
   }
@@ -143,8 +139,7 @@ const Cart = () => {
   return (
     <>
       <PageTitle title="Cart" />
-      <Navbar />
-      <div className="cart-page">
+      <div className="cart-page page-shell">
         <div className="cart-items">
           <div className="cart-title-row">
             <div>
@@ -297,7 +292,6 @@ const Cart = () => {
           ) : null}
         </div>
       </div>
-      <Footer />
     </>
   );
 };

@@ -5,15 +5,23 @@ import apiClient from '../../utils/apiClient';
 export const getProduct = createAsyncThunk(
   'product/getProduct',
   async (
-    { keyword, page = 1, category, priceLte, ratingGte, sort },
+    { keyword, page = 1, limit, category, subcategory, priceLte, ratingGte, sort },
     { rejectWithValue }
   ) => {
     try {
       const params = new URLSearchParams();
       params.set('page', String(page));
 
+      if (limit) {
+        params.set('limit', String(limit));
+      }
+
       if (category) {
         params.set('category', category);
+      }
+
+      if (subcategory) {
+        params.set('subcategory', subcategory);
       }
 
       if (keyword) {

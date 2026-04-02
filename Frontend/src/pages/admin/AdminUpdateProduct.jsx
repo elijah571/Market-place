@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import apiClient from '../../utils/apiClient';
 import '../../AdminStyles/UpdateProduct.css';
@@ -80,8 +79,7 @@ const AdminUpdateProduct = () => {
   return (
     <>
       <PageTitle title="Update Product" />
-      <Navbar />
-      <div className="update-product-wrapper">
+      <div className="update-product-wrapper page-shell">
         <h2 className="update-product-title">Update Product</h2>
         {loading ? (
           <p>Loading product...</p>

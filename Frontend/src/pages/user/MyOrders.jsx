@@ -1,10 +1,8 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import '../../OrderStyles/MyOrders.css';
-import Footer from '../../components/Footer';
 import { accountService } from '../../services/account.service';
 import { formatCurrency, formatDate, sentenceCase } from '../../utils/formatters';
 
@@ -48,8 +46,7 @@ const MyOrders = () => {
   return (
     <>
       <PageTitle title="My Orders" />
-      <Navbar />
-      <div className="my-orders-container">
+      <div className="my-orders-container page-shell">
         <div className="orders-page-header">
           <div>
             <p className="orders-kicker">Orders</p>
@@ -186,7 +183,6 @@ const MyOrders = () => {
           </div>
         ) : null}
       </div>
-      <Footer />
     </>
   );
 };

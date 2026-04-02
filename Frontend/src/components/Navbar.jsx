@@ -30,6 +30,17 @@ const Navbar = () => {
   const isAdmin = isAuthenticated && user?.role === 'admin';
   const quickActionLinks = getQuickActionLinks({ isAuthenticated });
   const accountLinks = getAccountLinks({ isAuthenticated, isAdmin });
+  const primaryNavPaths = new Set(PRIMARY_NAV_LINKS.map((item) => item.to));
+  const accountPaths = new Set(accountLinks.map((item) => item.to));
+  const drawerPrimaryLinks = PRIMARY_NAV_LINKS.filter((item) => item.to !== '/');
+  const drawerQuickActionLinks = quickActionLinks.filter(
+    (item) => !primaryNavPaths.has(item.to) && !accountPaths.has(item.to)
+  );
+
+  const closeMenus = () => {
+    setIsDrawerOpen(false);
+    setIsAccountMenuOpen(false);
+  };
 
   useEffect(() => {
     document.body.style.overflow = isDrawerOpen ? 'hidden' : '';
@@ -42,6 +53,10 @@ const Navbar = () => {
   useEffect(() => {
     setSearchQuery(currentKeyword);
   }, [currentKeyword]);
+
+  useEffect(() => {
+    closeMenus();
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -110,11 +125,6 @@ const Navbar = () => {
     navigate,
     searchQuery,
   ]);
-
-  const closeMenus = () => {
-    setIsDrawerOpen(false);
-    setIsAccountMenuOpen(false);
-  };
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
@@ -227,12 +237,40 @@ const Navbar = () => {
         </div>
 
         <div className="navbar-drawer-body">
+          <section className="navbar-drawer-summary surface-card">
+            <div className="navbar-drawer-summary-copy">
+              <p className="navbar-drawer-summary-kicker">
+                {isAuthenticated ? 'Signed in' : 'Guest browsing'}
+              </p>
+              <strong>
+                {isAuthenticated
+                  ? `Hi, ${user?.name?.split(' ')[0] || 'there'}`
+                  : 'Browse the store faster on mobile'}
+              </strong>
+              <span>
+                {isAuthenticated
+                  ? 'Your wishlist, cart, and account shortcuts stay one tap away.'
+                  : 'Open the menu for quick access to products, cart, and account actions.'}
+              </span>
+            </div>
+            <div className="navbar-drawer-metrics">
+              <article>
+                <strong>{wishlist?.length || 0}</strong>
+                <span>Wishlist</span>
+              </article>
+              <article>
+                <strong>{cartItemsCount}</strong>
+                <span>Cart</span>
+              </article>
+            </div>
+          </section>
+
           <section className="navbar-drawer-section" aria-labelledby="navbar-mobile-primary">
             <p id="navbar-mobile-primary" className="navbar-drawer-eyebrow">
               Browse
             </p>
             <div className="navbar-drawer-links">
-              {PRIMARY_NAV_LINKS.map((item) => {
+              {drawerPrimaryLinks.map((item) => {
                 const Icon = item.icon;
 
                 return (
@@ -258,7 +296,7 @@ const Navbar = () => {
               Quick actions
             </p>
             <div className="navbar-drawer-links">
-              {quickActionLinks.map((item) => {
+              {drawerQuickActionLinks.map((item) => {
                 const Icon = item.icon;
 
                 return (

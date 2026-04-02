@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import PageTitle from '../components/PageTitle';
 import '../CartStyles/Shipping.css';
 import '../CartStyles/Payment.css';
@@ -225,9 +223,8 @@ const Checkout = () => {
   return (
     <>
       <PageTitle title="Checkout" />
-      <Navbar />
       <CheckoutPath activeStep={activeStep} />
-      <div className="shipping-form-container">
+      <div className="shipping-form-container page-shell">
         <div className="checkout-header">
           <div>
             <p className="checkout-kicker">Checkout</p>
@@ -411,7 +408,6 @@ const Checkout = () => {
           )}
         </form>
       </div>
-      <Footer />
     </>
   );
 };

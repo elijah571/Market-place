@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../components/Navbar';
 import PageTitle from '../components/PageTitle';
 import apiClient from '../utils/apiClient';
 import '../UserStyles/Form.css';
@@ -32,7 +31,6 @@ const ChangePassword = () => {
   return (
     <>
       <PageTitle title="Change Password" />
-      <Navbar />
       <div className="form-container container">
         <div className="form-content">
           <form className="form" onSubmit={onSubmit}>

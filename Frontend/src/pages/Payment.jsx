@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { toast } from 'react-toastify';
-import Navbar from '../components/Navbar';
 import PageTitle from '../components/PageTitle';
 import CheckoutPath from '../components/CheckoutPath';
 import '../CartStyles/Payment.css';
@@ -86,10 +85,9 @@ const Payment = () => {
   return (
     <>
       <PageTitle title="Payment" />
-      <Navbar />
       <CheckoutPath activeStep={2} />
       {!isStripeFlow ? (
-        <div className="payment-container">
+        <div className="payment-container page-shell page-shell--narrow">
           <Link to="/checkout" className="payment-go-back">
             Go Back
           </Link>

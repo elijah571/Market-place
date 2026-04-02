@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import apiClient from '../../utils/apiClient';
 import '../../AdminStyles/ReviewsList.css';
@@ -39,8 +38,7 @@ const AdminReviews = () => {
   return (
     <>
       <PageTitle title="Admin Reviews" />
-      <Navbar />
-      <div className="reviews-list-container">
+      <div className="reviews-list-container page-shell">
         <h1 className="reviews-list-title">Reviews Management</h1>
         {loading ? (
           <p>Loading products...</p>

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import Navbar from '../components/Navbar';
 import PageTitle from '../components/PageTitle';
 import CheckoutPath from '../components/CheckoutPath';
 import '../CartStyles/OrderConfirm.css';
@@ -14,9 +13,8 @@ const OrderConfirm = () => {
   return (
     <>
       <PageTitle title="Order Confirm" />
-      <Navbar />
       <CheckoutPath activeStep={1} />
-      <div className="confirm-container">
+      <div className="confirm-container page-shell">
         <h1 className="confirm-header">Confirm Order</h1>
         <div className="confirm-table-container">
           <table className="confirm-table">

@@ -1,82 +1,92 @@
 import React from 'react';
 import '../componentStyles/Pagination.css';
-import { useSelector } from 'react-redux';
 
 const Pagination = ({
   currentPage,
   onPageChange,
+  totalPages = 0,
+  totalResults = 0,
+  currentResults = 0,
   activeClass = 'active',
   nextPageText = 'Next',
   prevPageText = 'Prev',
-  firstPageText = '1st',
-  lastPageText = 'Last',
 }) => {
-  const { totalPage, products } = useSelector((state) => state.product);
-
-  if (!products || products.length === 0 || totalPage <= 1) return null;
+  if (totalResults <= 0) {
+    return null;
+  }
 
   const getPageNumbers = () => {
-    const pageNumbers = [];
-    const pageWindow = 2;
+    const pages = [];
+    const lastPage = Math.max(totalPages, 1);
 
-    for (
-      let i = Math.max(1, currentPage - pageWindow);
-      i <= Math.min(totalPage, currentPage + pageWindow);
-      i++
-    ) {
-      pageNumbers.push(i);
+    for (let page = 1; page <= lastPage; page += 1) {
+      const isEdgePage = page === 1 || page === lastPage;
+      const isNearbyPage = Math.abs(page - currentPage) <= 1;
+
+      if (isEdgePage || isNearbyPage) {
+        pages.push(page);
+        continue;
+      }
+
+      const previousEntry = pages[pages.length - 1];
+      if (previousEntry !== 'ellipsis') {
+        pages.push('ellipsis');
+      }
     }
 
-    return pageNumbers;
+    return pages;
   };
 
   return (
-    <div className="pagination">
-      {currentPage > 1 && (
-        <>
-          <button className="pagination-btn" onClick={() => onPageChange(1)}>
-            {firstPageText}
-          </button>
+    <nav className="pagination-shell" aria-label="Catalog pagination">
+      <div className="pagination-summary">
+        <strong>
+          Page {Math.min(currentPage, Math.max(totalPages, 1))} of {Math.max(totalPages, 1)}
+        </strong>
+        <span>
+          Showing {currentResults} of {totalResults} products
+        </span>
+      </div>
 
+      {totalPages > 1 ? (
+        <div className="pagination">
           <button
             className="pagination-btn"
             onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage <= 1}
           >
             {prevPageText}
           </button>
-        </>
-      )}
 
-      {getPageNumbers().map((number) => (
-        <button
-          className={`pagination-btn ${
-            currentPage === number ? activeClass : ''
-          }`}
-          key={number}
-          onClick={() => onPageChange(number)}
-        >
-          {number}
-        </button>
-      ))}
+          {getPageNumbers().map((number, index) =>
+            number === 'ellipsis' ? (
+              <span className="pagination-ellipsis" key={`ellipsis-${index}`}>
+                ...
+              </span>
+            ) : (
+              <button
+                className={`pagination-btn ${
+                  currentPage === number ? activeClass : ''
+                }`}
+                key={number}
+                onClick={() => onPageChange(number)}
+                aria-current={currentPage === number ? 'page' : undefined}
+              >
+                {number}
+              </button>
+            )
+          )}
 
-      {currentPage < totalPage && (
-        <>
           <button
             className="pagination-btn"
             onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages}
           >
             {nextPageText}
           </button>
-
-          <button
-            className="pagination-btn"
-            onClick={() => onPageChange(totalPage)}
-          >
-            {lastPageText}
-          </button>
-        </>
-      )}
-    </div>
+        </div>
+      ) : null}
+    </nav>
   );
 };
 

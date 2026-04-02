@@ -1,7 +1,5 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
 import PageTitle from '../../components/PageTitle';
 import Product from '../../components/Product';
 import NoProduct from '../../components/NoProduct';
@@ -28,7 +26,6 @@ const SavedProducts = ({ title = 'Saved Products', heading = 'Saved Products' })
   return (
     <>
       <PageTitle title={title} />
-      <Navbar />
       <div className="saved-products-page">
         <div className="saved-products-shell">
           <div className="saved-products-header">
@@ -54,7 +51,6 @@ const SavedProducts = ({ title = 'Saved Products', heading = 'Saved Products' })
           )}
         </div>
       </div>
-      <Footer />
     </>
   );
 };

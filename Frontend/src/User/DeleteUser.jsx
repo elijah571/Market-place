@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../components/Navbar';
 import PageTitle from '../components/PageTitle';
 import apiClient from '../utils/apiClient';
 import '../UserStyles/Form.css';
@@ -28,7 +27,6 @@ const DeleteUser = () => {
   return (
     <>
       <PageTitle title="Delete User" />
-      <Navbar />
       <div className="form-container container">
         <div className="form-content">
           <div className="form">

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import apiClient from '../../utils/apiClient';
 import '../../AdminStyles/UpdateOrder.css';
@@ -45,27 +44,24 @@ const AdminUpdateOrder = () => {
 
   if (loading) {
     return (
-      <>
-        <Navbar />
-        <p style={{ marginTop: '90px', textAlign: 'center' }}>Loading order...</p>
-      </>
+      <div className="page-shell page-shell--narrow">
+        <p style={{ textAlign: 'center' }}>Loading order...</p>
+      </div>
     );
   }
 
   if (!order) {
     return (
-      <>
-        <Navbar />
-        <p style={{ marginTop: '90px', textAlign: 'center' }}>Order not found</p>
-      </>
+      <div className="page-shell page-shell--narrow">
+        <p style={{ textAlign: 'center' }}>Order not found</p>
+      </div>
     );
   }
 
   return (
     <>
       <PageTitle title="Update Order" />
-      <Navbar />
-      <div className="order-container">
+      <div className="order-container page-shell">
         <h1 className="order-title">Update Order</h1>
         <div className="order-details">
           <h2>Order</h2>

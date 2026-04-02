@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../components/Navbar';
 import PageTitle from '../components/PageTitle';
 import apiClient from '../utils/apiClient';
 import '../UserStyles/Profile.css';
@@ -26,8 +25,9 @@ const SingleUser = () => {
   if (!user) {
     return (
       <>
-        <Navbar />
-        <p style={{ marginTop: '90px', textAlign: 'center' }}>User not found</p>
+        <div className="page-shell page-shell--narrow">
+          <p style={{ textAlign: 'center' }}>User not found</p>
+        </div>
       </>
     );
   }
@@ -35,8 +35,7 @@ const SingleUser = () => {
   return (
     <>
       <PageTitle title="User Details" />
-      <Navbar />
-      <div className="profile-container">
+      <div className="profile-container page-shell">
         <div className="profile-image">
           <h1 className="profile-heading">User Details</h1>
           <img src={user?.avatar?.url || '/images/profile.jpeg'} alt="User Profile" />

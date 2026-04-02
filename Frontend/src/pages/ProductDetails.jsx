@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import '../pageStyles/ProductDetails.css';
 import PageTitle from '../components/PageTitle';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import Rating from '../components/Rating';
 import ProductCard from '../components/Product';
 import { useDispatch, useSelector } from 'react-redux';
@@ -215,9 +213,8 @@ const ProductDetails = () => {
   return (
     <>
       <PageTitle title={`${product?.name || 'Product'} - Details`} />
-      <Navbar />
 
-      <div className="product-details-container">
+      <div className="product-details-container page-shell">
         {loading ? (
           <Loader />
         ) : product ? (
@@ -395,7 +392,6 @@ const ProductDetails = () => {
         )}
       </div>
 
-      <Footer />
     </>
   );
 };

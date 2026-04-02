@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import apiClient from '../../utils/apiClient';
 import '../../AdminStyles/UsersList.css';
@@ -40,8 +39,7 @@ const AdminUsers = () => {
   return (
     <>
       <PageTitle title="Admin Users" />
-      <Navbar />
-      <div className="usersList-container">
+      <div className="usersList-container page-shell">
         <h2 className="usersList-title">Users</h2>
         {loading ? (
           <p className="loading-message">Loading users...</p>

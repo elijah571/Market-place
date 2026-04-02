@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/apiClient';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import '../../AdminStyles/ProductsList.css';
 
@@ -41,8 +40,7 @@ const AdminProducts = () => {
   return (
     <>
       <PageTitle title="Admin Products" />
-      <Navbar />
-      <div className="product-list-container">
+      <div className="product-list-container page-shell">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 className="product-list-title">Products</h2>
           <Link className="admin-dashboard-link" to="/admin/products/new">

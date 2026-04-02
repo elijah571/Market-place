@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import apiClient from '../../utils/apiClient';
 import '../../AdminStyles/UpdateRole.css';
@@ -52,9 +51,8 @@ const AdminUpdateRole = () => {
   return (
     <>
       <PageTitle title="Update User Role" />
-      <Navbar />
       <div className="page-wrapper">
-        <div className="update-user-role-container">
+        <div className="update-user-role-container page-shell page-shell--narrow">
           <h2>Update User Role</h2>
           {loading ? (
             <p>Loading user...</p>

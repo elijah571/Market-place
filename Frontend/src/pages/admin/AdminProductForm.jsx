@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import apiClient from '../../utils/apiClient';
 import '../../AdminStyles/CreateProduct.css';
@@ -233,8 +232,7 @@ const AdminProductForm = () => {
   return (
     <>
       <PageTitle title={isEdit ? 'Update Product' : 'Create Product'} />
-      <Navbar />
-      <div className="create-product-container">
+      <div className="create-product-container page-shell">
         <h2 className="form-title">{isEdit ? 'Update Product' : 'Create Product'}</h2>
         {loading ? (
           <p>Loading product...</p>

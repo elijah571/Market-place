@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import '../../AdminStyles/Dashboard.css';
 import { adminService } from '../../services/admin.service';
@@ -69,8 +68,7 @@ const AdminDashboard = () => {
   return (
     <>
       <PageTitle title="Admin Dashboard" />
-      <Navbar />
-      <div className="dashboard-container">
+      <div className="dashboard-container page-shell">
         <main className="main-content">
           <div className="dashboard-hero">
             <div>
