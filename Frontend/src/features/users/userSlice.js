@@ -193,6 +193,7 @@ const initialState = {
   resetPasswordSuccess: false,
   resetUserId: null,
   isAuthenticated: false,
+  authChecked: false,
   wishlist: [],
   wishlistProducts: [],
   recentlyViewed: [],
@@ -215,6 +216,7 @@ const userSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.isAuthenticated = false;
+      state.authChecked = true;
       state.success = false;
       state.error = null;
       clearAccessToken();
@@ -233,11 +235,12 @@ const userSlice = createSlice({
       })
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
         state.success = action.payload.status === 'success';
-        state.isAuthenticated = true;
-        setAccessToken(action.payload.accessToken);
-        state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
+        state.user = null;
+        state.isAuthenticated = false;
+        state.authChecked = true;
+        clearAccessToken();
+        state.wishlist = [];
         state.wishlistProducts = [];
       })
       .addCase(register.rejected, (state, action) => {
@@ -245,6 +248,7 @@ const userSlice = createSlice({
         state.error = action.payload || 'Registration failed, please try again';
         state.user = null;
         state.isAuthenticated = false;
+        state.authChecked = true;
         state.success = false;
       })
       .addCase(login.pending, (state) => {
@@ -256,6 +260,7 @@ const userSlice = createSlice({
         state.user = action.payload.user;
         state.success = action.payload.status === 'success';
         state.isAuthenticated = true;
+        state.authChecked = true;
         setAccessToken(action.payload.accessToken);
         state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
         state.wishlistProducts = [];
@@ -265,7 +270,9 @@ const userSlice = createSlice({
         state.error = action.payload || 'Login failed, please try again';
         state.user = null;
         state.isAuthenticated = false;
+        state.authChecked = true;
         state.success = false;
+        clearAccessToken();
       })
       .addCase(loadCurrentUser.pending, (state) => {
         state.loading = true;
@@ -274,6 +281,12 @@ const userSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.isAuthenticated = Boolean(action.payload.authenticated);
+        state.authChecked = true;
+        if (action.payload.accessToken) {
+          setAccessToken(action.payload.accessToken);
+        } else if (!action.payload.authenticated) {
+          clearAccessToken();
+        }
         state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
         state.wishlistProducts = [];
         state.recentlyViewed = [];
@@ -282,13 +295,16 @@ const userSlice = createSlice({
         state.loading = false;
         state.user = null;
         state.isAuthenticated = false;
+        state.authChecked = true;
         state.wishlist = [];
         state.wishlistProducts = [];
         state.recentlyViewed = [];
+        clearAccessToken();
       })
       .addCase(logoutUserApi.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
+        state.authChecked = true;
         state.success = false;
         state.error = null;
         clearAccessToken();

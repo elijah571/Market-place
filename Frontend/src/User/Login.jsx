@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import '../UserStyles/Form.css';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   login,
@@ -17,6 +17,12 @@ const Login = () => {
   );
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = location.state?.from
+    ? `${location.state.from.pathname || '/'}${location.state.from.search || ''}${
+        location.state.from.hash || ''
+      }`
+    : '/';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,17 +47,17 @@ const Login = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, redirectTo]);
 
   useEffect(() => {
     if (success) {
       toast.success('Login successful');
       dispatch(removeSuccess());
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     }
-  }, [dispatch, success, navigate]);
+  }, [dispatch, success, navigate, redirectTo]);
 
   if (loading) return <Loader />;
 

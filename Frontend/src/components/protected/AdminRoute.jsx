@@ -1,17 +1,18 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Loader from '../Loader';
 
 const AdminRoute = ({ children }) => {
-  const { loading, isAuthenticated, user } = useSelector((state) => state.user);
+  const location = useLocation();
+  const { loading, isAuthenticated, user, authChecked } = useSelector((state) => state.user);
 
-  if (loading) {
+  if (loading || !authChecked) {
     return <Loader />;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (user?.role !== 'admin') {

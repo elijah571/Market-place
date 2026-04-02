@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
+import '../pageStyles/Home.css';
 import '../pageStyles/Products.css';
 import PageTitle from '../components/PageTitle';
 import { useDispatch, useSelector } from 'react-redux';
@@ -10,10 +11,30 @@ import NoProduct from '../components/NoProduct';
 import Pagination from '../components/Pagination';
 import FiltersPanel from '../components/FiltersPanel';
 import ProductSkeletonGrid from '../components/ProductSkeletonGrid';
-import { pickRandomBackground } from '../utils/backgrounds';
+import { storefrontBackgrounds } from '../utils/backgrounds';
 import { useCatalogMeta } from '../features/catalog/catalogQueries';
 
 const DEFAULT_PAGE_SIZE = 12;
+const HERO_ROTATION_MS = 10000;
+const HERO_STORAGE_KEY = 'catalog-hero-background-index';
+
+const getInitialHeroIndex = () => {
+  if (typeof window === 'undefined' || storefrontBackgrounds.length === 0) {
+    return 0;
+  }
+
+  const savedIndex = Number(window.sessionStorage.getItem(HERO_STORAGE_KEY));
+
+  if (
+    Number.isInteger(savedIndex) &&
+    savedIndex >= 0 &&
+    savedIndex < storefrontBackgrounds.length
+  ) {
+    return savedIndex;
+  }
+
+  return Math.floor(Math.random() * storefrontBackgrounds.length);
+};
 
 const Products = () => {
   const { loading, error, products, productCount, totalPage } = useSelector(
@@ -23,7 +44,11 @@ const Products = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
-  const heroBackground = useMemo(() => pickRandomBackground(), []);
+  const [heroIndex, setHeroIndex] = useState(getInitialHeroIndex);
+  const heroBackground = useMemo(
+    () => storefrontBackgrounds[heroIndex] || storefrontBackgrounds[0],
+    [heroIndex]
+  );
   const {
     data: catalogMeta = {
       categories: [],
@@ -107,6 +132,16 @@ const Products = () => {
     return filters;
   }, [category, subcategory, maxPrice, minimumRating, sortBy, pageSize]);
 
+  const rotateHeroBackground = useEffectEvent(() => {
+    setHeroIndex((currentIndex) => {
+      if (storefrontBackgrounds.length <= 1) {
+        return currentIndex;
+      }
+
+      return (currentIndex + 1) % storefrontBackgrounds.length;
+    });
+  });
+
   const updateCatalogParams = useCallback(
     (updater) => {
       const nextParams = new URLSearchParams(location.search);
@@ -146,6 +181,27 @@ const Products = () => {
     minimumRating,
     sortBy,
   ]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    window.sessionStorage.setItem(HERO_STORAGE_KEY, String(heroIndex));
+    return undefined;
+  }, [heroIndex]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || storefrontBackgrounds.length <= 1) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      rotateHeroBackground();
+    }, HERO_ROTATION_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [rotateHeroBackground]);
 
   useEffect(() => {
     if (!subcategory || subcategories.length === 0) {

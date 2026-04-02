@@ -27,6 +27,36 @@ const passwordOptions = {
   minSymbols: 1,
 };
 
+const serializeUser = (userDoc) => {
+  if (!userDoc) {
+    return null;
+  }
+
+  const user =
+    typeof userDoc.toObject === 'function' ? userDoc.toObject() : { ...userDoc };
+
+  delete user.password;
+  delete user.tokenVersion;
+  delete user.refreshTokenHash;
+  delete user.refreshTokenExpiresAt;
+  delete user.verificationToken;
+  delete user.verificationTokenExpiresAt;
+  delete user.resetPasswordToken;
+  delete user.resetPasswordExpiresAt;
+
+  return user;
+};
+
+const buildAuthenticatedSession = async (res, user) => {
+  const { accessToken } = await issueAuthTokens(res, user);
+
+  return {
+    authenticated: true,
+    accessToken,
+    user: serializeUser(user),
+  };
+};
+
 /* ===============================
    SIGN UP
 ================================= */
@@ -101,13 +131,10 @@ export const signUp = asyncHandler(async (req, res) => {
 
   await sendVerificationEmail(normalizedEmail, verificationToken);
 
-  const { accessToken } = await issueAuthTokens(res, user);
-
   res.status(201).json({
     status: 'success',
     message: 'User created successfully. Check your email for verification.',
-    user,
-    accessToken,
+    user: serializeUser(user),
   });
 });
 /* ===============================
@@ -116,7 +143,9 @@ export const signUp = asyncHandler(async (req, res) => {
 export const verifyAccount = asyncHandler(async (req, res) => {
   const { verificationToken } = req.body;
 
-  const user = await User.findOne({ verificationToken });
+  const user = await User.findOne({ verificationToken }).select(
+    '+verificationToken +verificationTokenExpiresAt'
+  );
 
   if (!user) {
     throw new AppError('Invalid or expired verification token', 400);
@@ -167,15 +196,13 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new AppError('Verify your account before login', 403);
   }
 
-  const { accessToken } = await issueAuthTokens(res, user);
-
-  user.password = undefined;
+  const session = await buildAuthenticatedSession(res, user);
 
   res.status(200).json({
     status: 'success',
     message: 'Login successful',
-    user,
-    accessToken,
+    user: session.user,
+    accessToken: session.accessToken,
   });
 });
 
@@ -238,6 +265,10 @@ export const refreshAuthToken = asyncHandler(async (req, res) => {
     throw new AppError('User not found', 404);
   }
 
+  if (!user.isVerified) {
+    throw new AppError('Verify your account before login', 403);
+  }
+
   if (
     decoded.tokenVersion !== user.tokenVersion ||
     !user.refreshTokenHash ||
@@ -262,54 +293,121 @@ export const refreshAuthToken = asyncHandler(async (req, res) => {
 ================================= */
 export const getSessionStatus = asyncHandler(async (req, res) => {
   const accessToken = getAccessTokenFromRequest(req);
-
-  if (!accessToken) {
-    return res.status(200).json({
-      status: 'success',
-      authenticated: false,
-      user: null,
-    });
-  }
-
-  try {
-    const decoded = verifyAccessToken(accessToken);
-
-    if (decoded.type !== 'access') {
-      clearAuthCookies(res);
-      return res.status(200).json({
-        status: 'success',
-        authenticated: false,
-        user: null,
-      });
-    }
-
-    const user = await User.findById(decoded.userId)
-      .select('-password +tokenVersion')
-      .lean();
-
-    if (!user || decoded.tokenVersion !== user.tokenVersion) {
-      clearAuthCookies(res);
-      return res.status(200).json({
-        status: 'success',
-        authenticated: false,
-        user: null,
-      });
-    }
-
-    delete user.tokenVersion;
-
-    return res.status(200).json({
-      status: 'success',
-      authenticated: true,
-      user,
-    });
-  } catch {
+  const clearUnauthenticatedSession = () => {
     clearAuthCookies(res);
     return res.status(200).json({
       status: 'success',
       authenticated: false,
       user: null,
+      accessToken: null,
     });
+  };
+
+  const accessTokenFromSession = async (token) => {
+    const decoded = verifyAccessToken(token);
+
+    if (decoded.type !== 'access') {
+      return null;
+    }
+
+    const user = await User.findById(decoded.userId).select('+tokenVersion');
+
+    if (!user || decoded.tokenVersion !== user.tokenVersion || !user.isVerified) {
+      return null;
+    }
+
+    return {
+      authenticated: true,
+      accessToken: token,
+      user: serializeUser(user),
+    };
+  };
+
+  const refreshSession = async () => {
+    const refreshToken = getRefreshTokenFromRequest(req);
+
+    if (!refreshToken) {
+      return null;
+    }
+
+    const decoded = verifyRefreshToken(refreshToken);
+
+    if (decoded.type !== 'refresh') {
+      return null;
+    }
+
+    const tokenHash = hashToken(refreshToken);
+    const user = await User.findById(decoded.userId).select(
+      '+refreshTokenHash +refreshTokenExpiresAt +tokenVersion'
+    );
+
+    if (
+      !user ||
+      !user.isVerified ||
+      decoded.tokenVersion !== user.tokenVersion ||
+      !user.refreshTokenHash ||
+      user.refreshTokenHash !== tokenHash ||
+      !user.refreshTokenExpiresAt ||
+      user.refreshTokenExpiresAt < Date.now()
+    ) {
+      return null;
+    }
+
+    return buildAuthenticatedSession(res, user);
+  };
+
+  if (!accessToken) {
+    try {
+      const refreshedSession = await refreshSession();
+
+      if (refreshedSession) {
+        return res.status(200).json({
+          status: 'success',
+          ...refreshedSession,
+        });
+      }
+    } catch {
+      return clearUnauthenticatedSession();
+    }
+
+    return clearUnauthenticatedSession();
+  }
+
+  try {
+    const activeSession = await accessTokenFromSession(accessToken);
+
+    if (activeSession) {
+      return res.status(200).json({
+        status: 'success',
+        ...activeSession,
+      });
+    }
+
+    const refreshedSession = await refreshSession();
+
+    if (refreshedSession) {
+      return res.status(200).json({
+        status: 'success',
+        ...refreshedSession,
+      });
+    }
+
+    return clearUnauthenticatedSession();
+  } catch {
+    try {
+      const refreshedSession = await refreshSession();
+
+      if (refreshedSession) {
+        return res.status(200).json({
+          status: 'success',
+          ...refreshedSession,
+        });
+      }
+    } catch {
+      return clearUnauthenticatedSession();
+    }
+
+    return clearUnauthenticatedSession();
   }
 });
 
@@ -364,7 +462,9 @@ export const resetPassword = asyncHandler(async (req, res) => {
     );
   }
 
-  const user = await User.findById(userId).select('+tokenVersion');
+  const user = await User.findById(userId).select(
+    '+tokenVersion +resetPasswordToken +resetPasswordExpiresAt'
+  );
 
   if (!user) {
     throw new AppError('User not found', 404);
@@ -468,7 +568,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'Profile updated successfully',
-    user,
+    user: serializeUser(user),
   });
 });
 
@@ -481,7 +581,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
   res.status(200).json({
     status: 'success',
     results: users.length,
-    users,
+    users: users.map(serializeUser),
   });
 });
 
@@ -499,7 +599,7 @@ export const getUserById = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     status: 'success',
-    user,
+    user: serializeUser(user),
   });
 });
 
@@ -535,7 +635,7 @@ export const getMyProfile = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     status: 'success',
-    user,
+    user: serializeUser(user),
   });
 });
 
@@ -589,7 +689,7 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'Profile updated successfully',
-    user,
+    user: serializeUser(user),
   });
 });
 

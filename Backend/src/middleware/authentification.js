@@ -25,6 +25,10 @@ export const isAuthenticated = asyncHandler(async (req, res, next) => {
     throw new AppError('User not found', 404);
   }
 
+  if (!user.isVerified) {
+    throw new AppError('Verify your account before accessing this resource', 403);
+  }
+
   if (decoded.tokenVersion !== user.tokenVersion) {
     throw new AppError('Session expired. Please login again.', 401);
   }

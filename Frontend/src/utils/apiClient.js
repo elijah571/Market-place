@@ -74,9 +74,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         clearAccessToken();
-        return Promise.reject(
-          refreshError.response?.data?.message || 'Session expired. Login again.'
-        );
+        return Promise.reject(refreshError);
       }
     }
 

@@ -71,6 +71,7 @@ const userSchema = new mongoose.Schema(
     verificationToken: {
       type: String,
       default: '',
+      select: false,
     },
     isVerified: {
       type: Boolean,
@@ -79,15 +80,18 @@ const userSchema = new mongoose.Schema(
     verificationTokenExpiresAt: {
       type: Date,
       default: Date.now,
+      select: false,
     },
 
     resetPasswordToken: {
       type: String,
       default: '',
+      select: false,
     },
     resetPasswordExpiresAt: {
       type: Date,
       default: Date.now,
+      select: false,
     },
     refreshTokenHash: {
       type: String,

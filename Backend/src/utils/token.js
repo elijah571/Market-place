@@ -7,6 +7,10 @@ const REFRESH_COOKIE_NAME = 'refreshToken';
 const isProd = process.env.NODE_ENV === 'production';
 const sameSite = isProd ? 'none' : 'lax';
 const secure = isProd;
+const accessTokenMaxAge =
+  Number(process.env.JWT_ACCESS_MS) || 15 * 60 * 1000;
+const refreshTokenMaxAge =
+  Number(process.env.JWT_REFRESH_MS) || 7 * 24 * 60 * 60 * 1000;
 
 export const createAccessToken = (payload) =>
   jwt.sign(payload, process.env.JWT_SECRET, {
@@ -32,18 +36,14 @@ export const setAuthCookies = (res, accessToken, refreshToken) => {
     httpOnly: true,
     secure,
     sameSite,
-    maxAge:
-      (Number(process.env.JWT_ACCESS_MS) ||
-        15 * 60 * 1000),
+    maxAge: accessTokenMaxAge,
   });
 
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
     httpOnly: true,
     secure,
     sameSite,
-    maxAge:
-      (Number(process.env.JWT_REFRESH_MS) ||
-        7 * 24 * 60 * 60 * 1000),
+    maxAge: refreshTokenMaxAge,
   });
 };
 
@@ -104,9 +104,7 @@ export const issueAuthTokens = async (res, user) => {
   });
 
   user.refreshTokenHash = hashToken(refreshToken);
-  user.refreshTokenExpiresAt = new Date(
-    Date.now() + 7 * 24 * 60 * 60 * 1000
-  );
+  user.refreshTokenExpiresAt = new Date(Date.now() + refreshTokenMaxAge);
   await user.save({ validateBeforeSave: false });
 
   setAuthCookies(res, accessToken, refreshToken);
