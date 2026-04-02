@@ -32,7 +32,10 @@ html {
 
 body {
   font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
-  background: linear-gradient(180deg, #fcfcfc 0%, #f4f5f6 100%);
+  background:
+    radial-gradient(circle at top left, rgba(246, 139, 30, 0.14), transparent 28%),
+    radial-gradient(circle at top right, rgba(29, 78, 216, 0.08), transparent 30%),
+    linear-gradient(180deg, #fcfcfc 0%, #f4f5f6 100%);
   color: var(--text-main);
 }
 

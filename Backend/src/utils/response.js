@@ -7,5 +7,6 @@ export const sendSuccess = (
     message,
     data,
     meta,
+    requestId: res.getHeader('x-request-id') || null,
   });
 };

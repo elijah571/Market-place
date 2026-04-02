@@ -20,6 +20,7 @@ import Loader from '../components/Loader';
 import { addToCart, syncCartWithServer } from '../features/cart/cartSlice';
 import { storefrontService } from '../services/storefront.service';
 import { formatCurrency } from '../utils/formatters';
+import { useProductRecommendations } from '../features/catalog/catalogQueries';
 
 const ProductDetails = () => {
   const [userRating, setUserRating] = useState(0);
@@ -29,7 +30,6 @@ const ProductDetails = () => {
   const [selectedSize, setSelectedSize] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [activeImage, setActiveImage] = useState('');
-  const [recommendations, setRecommendations] = useState([]);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -38,6 +38,7 @@ const ProductDetails = () => {
   const { loading, error, product } = useSelector((state) => state.product);
   const { isAuthenticated } = useSelector((state) => state.user);
   const cartSyncing = useSelector((state) => state.cart.syncing);
+  const { data: recommendations = [] } = useProductRecommendations(id);
 
   const availableVariants = useMemo(() => product?.variants || [], [product]);
   const availableColors = useMemo(() => {
@@ -105,10 +106,6 @@ const ProductDetails = () => {
   useEffect(() => {
     if (id) {
       dispatch(getProductDetails(id));
-      storefrontService
-        .getProductRecommendations(id)
-        .then((items) => setRecommendations(items))
-        .catch(() => setRecommendations([]));
     }
 
     return () => {

@@ -1,168 +1,265 @@
-  .container {
-    width: 100%;
-    max-width: 600px; 
-    border-radius: 10px;
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    padding: 20px;
-    box-sizing: border-box;
-  }
-  
+.container {
+  width: 100%;
+  max-width: 34rem;
+}
 
-  
-  .active-tab {
-    color:  var(--primary-main);
-    font-weight: bold;
-    border-bottom: 3px solid  var(--primary-main);
-  }
-  
+.form-container,
+.update-container,
+.forgot-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
 
-  .form-content {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 300px;
-    width: 400px;
-    background-color:rgb(246, 243, 243);
-    padding: 20px;
-    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+.form-container {
+  min-height: 100vh;
+}
+
+.update-container,
+.forgot-container {
+  min-height: 60vh;
+}
+
+.form-content {
+  width: min(100%, 34rem);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 247, 247, 0.96));
+  border: 1px solid rgba(34, 34, 34, 0.08);
+  border-radius: calc(var(--radius-lg) + 4px);
+  box-shadow: var(--shadow-md);
+  padding: 2rem;
+}
+
+.form {
+  width: 100%;
+  display: grid;
+  gap: 1rem;
+}
+
+.form h2 {
+  color: var(--secondary-main);
+  font-size: clamp(1.8rem, 3vw, 2.3rem);
+  letter-spacing: -0.04em;
+}
+
+.input-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.input-group label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.input-group input {
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(34, 34, 34, 0.14);
+  border-radius: 16px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.96);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: rgba(246, 139, 30, 0.45);
+  box-shadow: 0 0 0 4px rgba(246, 139, 30, 0.12);
+}
+
+.avatar-group {
+  margin-top: 0.25rem;
+}
+
+.avatar-input-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.file-input {
+  flex: 1;
+  padding: 0.85rem;
+  border-radius: 16px;
+  border: 1px dashed rgba(34, 34, 34, 0.22);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.avatar {
+  width: 4rem;
+  height: 4rem;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 2px solid rgba(246, 139, 30, 0.28);
+}
+
+.authBtn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--primary-main), var(--primary-dark));
+  color: white;
+  border: none;
+  padding: 0.95rem 1.1rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.authBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-links {
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-soft);
+}
+
+.form-links a,
+.pointer {
+  color: var(--primary-main);
+  font-weight: 700;
+}
+
+.active-tab {
+  color: var(--primary-main);
+  font-weight: bold;
+  border-bottom: 3px solid var(--primary-main);
+}
+
+.email-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100px;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.08fr minmax(22rem, 34rem);
+  background:
+    radial-gradient(circle at top left, rgba(246, 139, 30, 0.16), transparent 26%),
+    linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.auth-shell-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 2rem;
+  display: grid;
+  align-content: space-between;
+  gap: 1.5rem;
+  isolation: isolate;
+}
+
+.auth-shell-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(135deg, rgba(17, 24, 39, 0.85), rgba(17, 24, 39, 0.34)),
+    var(--auth-image) center / cover no-repeat;
+}
+
+.auth-shell-panel::after {
+  content: '';
+  position: absolute;
+  inset: auto 10% 6% auto;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(246, 139, 30, 0.35), rgba(246, 139, 30, 0));
+  z-index: -1;
+}
+
+.auth-shell-copy {
+  display: grid;
+  gap: 1rem;
+  max-width: 34rem;
+  color: white;
+}
+
+.auth-shell-copy p {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.auth-shell-copy h1 {
+  font-size: clamp(2.2rem, 4vw, 4rem);
+  line-height: 1;
+}
+
+.auth-shell-copy span {
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.75;
+}
+
+.auth-shell-highlights {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.auth-shell-highlights article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  align-items: start;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px);
+  color: white;
+}
+
+.auth-shell-highlights strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.auth-shell-highlights span {
+  color: rgba(255, 255, 255, 0.76);
+  line-height: 1.6;
+}
+
+.auth-form-shell {
+  padding: 2rem;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.auth-shell-link {
+  justify-self: end;
+  color: var(--secondary-main);
+  font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
   }
-  
-  
-  .form {
-    width: 100%;
+
+  .auth-shell-panel {
+    min-height: 22rem;
   }
-  
-  .form h2 {
-    text-align: center;
-    color: var(--primary-main);
-    margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .form-content,
+  .auth-shell-panel,
+  .auth-form-shell {
+    padding: 1.25rem;
   }
-  
-  .input-group {
-    display: flex;
+
+  .avatar-input-row {
     flex-direction: column;
-    margin-bottom: 15px;
+    align-items: flex-start;
   }
-
-  .input-group input {
-    padding: 14px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 16px; 
-  }
-  
-  .avatar-group {
-    display: flex;                 
-    align-items: center;           
-    gap: 10px;                     
-  }
-  
-  .file-input {
-    padding: 8px;                   
-    border-radius: 5px;            
-    border: 1px solid #ccc;        
-    font-size: 14px;                
-    width: 80%;                   
-  }
-  
-  .avatar {
-    width: 50px;                    
-    height: 50px;                 
-    object-fit: cover;              
-    border-radius: 50%;             
-  }
-  .authBtn {
-    width: 100%;
-    background: var(--primary-main);
-    color: var(--text-primary);
-    border: none;
-    padding: 14px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background 0.3s;
-  }
-  
-  button:hover {
-    background:var(--primary-dark);
-    color:var(--text-primary);
-  }
- .form-links{
-    text-align: center;
-    font-size: 14px;
-    color: #555;
-    margin-top:10px;
-  }
-  
-  .form-links a {
-    color:var(--border-color);
-    margin-left: 10px;
-    
-  }
-  
-  .form-links a:hover {
-    text-decoration: underline;
-  }
-  
-  .pointer {
-    cursor: pointer;
-    color: var(--primary-main)
-  }
-  
-  .form-container{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 80vh; 
-    min-height: 100vh;
-    width: 100%;
-  }
-  .update-container{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 60vh; 
-    width: 100%;
-    margin-top:70px;
-  }
-  .forgot-container{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 60vh; 
-    width: 100%;
-    margin-top:30px;
-  }
-  .email-group{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100px;
-  }
-
-  @media (max-width: 768px) {
-    .container {
-      padding: 15px;
-    }
-  
-    button {
-      font-size: 14px;
-      padding: 10px;
-    }
-  
-    .input-group input {
-      padding: 12px;
-      font-size: 14px;
-    }
-  
-    .tab {
-      font-size: 14px;
-    }
-    .update-container{
-      margin-top:60px;
-    }
-  }
-  
-
-  
+}

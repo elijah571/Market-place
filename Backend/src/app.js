@@ -18,6 +18,7 @@ import promotionRoutes from './routes/promotion.routes.js';
 import { sanitizeRequest } from './middleware/sanitize.middleware.js';
 import { enforceCsrfOrigin } from './middleware/csrf.middleware.js';
 import errorHandler from './middleware/error.js';
+import { logger } from './utils/logger.js';
 
 const app = express();
 const allowedOrigins = String(process.env.FRONTEND_URL || '')
@@ -51,9 +52,20 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-}
+app.use(
+  morgan(
+    process.env.NODE_ENV === 'development'
+      ? 'dev'
+      : ':method :url :status :response-time ms - :res[content-length]',
+    {
+      stream: {
+        write: (message) => {
+          logger.info('http_request', { request: message.trim() });
+        },
+      },
+    }
+  )
+);
 
 app.use(
   cors({

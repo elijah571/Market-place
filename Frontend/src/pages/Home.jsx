@@ -1,31 +1,90 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useMemo, useRef } from 'react';
 import '../pageStyles/Home.css';
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import Product from '../components/Product';
 import PageTitle from '../components/PageTitle';
+import ImageSlider from '../components/ImageSlider';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
-import { toast } from 'react-toastify';
 import ProductSkeletonGrid from '../components/ProductSkeletonGrid';
-import { storefrontService } from '../services/storefront.service';
 import { Link } from 'react-router-dom';
 import { formatCompactNumber } from '../utils/formatters';
+import { pickRandomBackground } from '../utils/backgrounds';
+import { useHomeCollections } from '../features/catalog/catalogQueries';
+
+const HomeSliderSection = ({
+  sectionRef,
+  kicker,
+  heading,
+  subtitle,
+  products,
+  emptyMessage = 'No products to display right now.',
+  keyPrefix,
+  onScroll,
+}) => (
+  <section className="home-section">
+    <div className="home-section-top">
+      <div className="home-section-copy">
+        <p className="home-kicker">{kicker}</p>
+        <h2 className="home-heading">{heading}</h2>
+        {subtitle ? <p className="home-subheading">{subtitle}</p> : null}
+      </div>
+      <div className="home-slider-controls">
+        <button
+          type="button"
+          className="home-slider-btn"
+          onClick={() => onScroll(sectionRef, -1)}
+          aria-label={`Scroll ${heading} left`}
+        >
+          <ChevronLeft />
+        </button>
+        <button
+          type="button"
+          className="home-slider-btn"
+          onClick={() => onScroll(sectionRef, 1)}
+          aria-label={`Scroll ${heading} right`}
+        >
+          <ChevronRight />
+        </button>
+      </div>
+    </div>
+
+    {products.length > 0 ? (
+      <div className="home-product-slider" ref={sectionRef}>
+        {products.map((product) => (
+          <div className="home-product-slide" key={`${keyPrefix}-${product._id}`}>
+            <Product product={product} />
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p className="home-empty-state">{emptyMessage}</p>
+    )}
+  </section>
+);
 
 const Home = () => {
   const { recentlyViewed } = useSelector((state) => state.user);
   const mostViewedRef = useRef(null);
   const topRatedRef = useRef(null);
   const recentlyViewedRef = useRef(null);
-  const [sections, setSections] = useState({
-    mostViewed: [],
-    topRated: [],
-    meta: {
-      categories: [],
-      priceRange: { min: 0, max: 0 },
+  const heroBackground = useMemo(() => pickRandomBackground(), []);
+  const spotlightBackground = useMemo(
+    () => pickRandomBackground([heroBackground]),
+    [heroBackground]
+  );
+  const {
+    data: sections = {
+      mostViewed: [],
+      topRated: [],
+      meta: {
+        categories: [],
+        priceRange: { min: 0, max: 0 },
+      },
     },
-  });
-  const [loading, setLoading] = useState(true);
+    isLoading: loading,
+  } = useHomeCollections();
 
   const scrollSection = (sectionRef, direction) => {
     if (!sectionRef?.current) {
@@ -39,84 +98,21 @@ const Home = () => {
     });
   };
 
-  const renderSliderSection = ({
-    sectionRef,
-    kicker,
-    heading,
-    subtitle,
-    products,
-    emptyMessage = 'No products to display right now.',
-    keyPrefix,
-  }) => (
-    <section className="home-section">
-      <div className="home-section-top">
-        <div className="home-section-copy">
-          <p className="home-kicker">{kicker}</p>
-          <h2 className="home-heading">{heading}</h2>
-          {subtitle ? <p className="home-subheading">{subtitle}</p> : null}
-        </div>
-        <div className="home-slider-controls">
-          <button
-            type="button"
-            className="home-slider-btn"
-            onClick={() => scrollSection(sectionRef, -1)}
-            aria-label={`Scroll ${heading} left`}
-          >
-            <ChevronLeft />
-          </button>
-          <button
-            type="button"
-            className="home-slider-btn"
-            onClick={() => scrollSection(sectionRef, 1)}
-            aria-label={`Scroll ${heading} right`}
-          >
-            <ChevronRight />
-          </button>
-        </div>
-      </div>
-
-      {products.length > 0 ? (
-        <div className="home-product-slider" ref={sectionRef}>
-          {products.map((product) => (
-            <div className="home-product-slide" key={`${keyPrefix}-${product._id}`}>
-              <Product product={product} />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="home-empty-state">{emptyMessage}</p>
-      )}
-    </section>
-  );
-
-  useEffect(() => {
-    const loadHomeSections = async () => {
-      setLoading(true);
-      try {
-        const data = await storefrontService.getHomeCollections();
-        setSections(data);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Unable to load home products');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadHomeSections();
-  }, []);
-
   return (
     <>
       <PageTitle title="HOME" />
       <Navbar />
       <div className="home-page">
-        <section className="home-hero">
+        <section
+          className="home-hero home-surface home-backdrop"
+          style={{ '--hero-image': `url(${heroBackground})` }}
+        >
           <div className="home-hero-copy">
-            <p className="home-kicker">Jumia-inspired shopping, reworked for speed</p>
-            <h1>Discover fast-moving deals, guided checkout, and a cleaner shopping flow.</h1>
+            <p className="home-kicker">Fresh storefront layout</p>
+            <h1>Discover fast-moving deals in a storefront that feels editorial, bright, and quick.</h1>
             <p className="home-hero-text">
               Browse curated collections, save products you love, reuse saved addresses, and move
-              from discovery to payment with less friction.
+              from discovery to payment with a more visual shopping experience.
             </p>
             <div className="home-hero-actions">
               <Link to="/products" className="home-primary-btn">
@@ -142,9 +138,12 @@ const Home = () => {
             </div>
           </div>
           <div className="home-hero-panel">
-            <div className="hero-panel-card accent">
-              <span>Best sellers</span>
-              <strong>High-intent collections</strong>
+            <div
+              className="hero-panel-card accent hero-panel-spotlight"
+              style={{ '--spotlight-image': `url(${spotlightBackground})` }}
+            >
+              <span>Storefront spotlight</span>
+              <strong>Shoppable scenes with stronger visual rhythm</strong>
               <p>Top viewed and top rated products are surfaced automatically for faster discovery.</p>
             </div>
             <div className="hero-panel-grid">
@@ -178,6 +177,21 @@ const Home = () => {
         </section>
 
         <div className="home-container">
+          <ImageSlider />
+          <section className="home-editorial-ribbon home-surface">
+            <article>
+              <span>Curated layout</span>
+              <strong>Image-led sections make discovery feel more premium.</strong>
+            </article>
+            <article>
+              <span>Faster intent</span>
+              <strong>Most-viewed, top-rated, and recently-viewed products are easier to scan.</strong>
+            </article>
+            <article>
+              <span>Checkout clarity</span>
+              <strong>Saved address flows and cart sync status stay visible while shopping.</strong>
+            </article>
+          </section>
           {loading ? (
             <ProductSkeletonGrid count={8} />
           ) : (
@@ -209,32 +223,37 @@ const Home = () => {
                 </div>
               </section>
 
-              {renderSliderSection({
-                sectionRef: mostViewedRef,
-                kicker: 'Storefront Highlights',
-                heading: 'Most Viewed Products',
-                subtitle: 'Products shoppers are opening and checking out the most right now.',
-                products: sections.mostViewed,
-                keyPrefix: 'viewed',
-              })}
+              <HomeSliderSection
+                sectionRef={mostViewedRef}
+                kicker="Storefront Highlights"
+                heading="Most Viewed Products"
+                subtitle="Products shoppers are opening and checking out the most right now."
+                products={sections.mostViewed}
+                keyPrefix="viewed"
+                onScroll={scrollSection}
+              />
 
-              {renderSliderSection({
-                sectionRef: topRatedRef,
-                kicker: 'Customer Favorites',
-                heading: 'Top Rated Products',
-                subtitle: 'The highest-rated picks based on reviews from your customers.',
-                products: sections.topRated,
-                keyPrefix: 'rated',
-              })}
+              <HomeSliderSection
+                sectionRef={topRatedRef}
+                kicker="Customer Favorites"
+                heading="Top Rated Products"
+                subtitle="The highest-rated picks based on reviews from your customers."
+                products={sections.topRated}
+                keyPrefix="rated"
+                onScroll={scrollSection}
+              />
 
               {recentlyViewed.length > 0 &&
-                renderSliderSection({
-                  sectionRef: recentlyViewedRef,
-                  kicker: 'Just For You',
-                  heading: 'Recently Viewed',
-                  products: recentlyViewed,
-                  keyPrefix: 'recent',
-                })}
+                (
+                  <HomeSliderSection
+                    sectionRef={recentlyViewedRef}
+                    kicker="Just For You"
+                    heading="Recently Viewed"
+                    products={recentlyViewed}
+                    keyPrefix="recent"
+                    onScroll={scrollSection}
+                  />
+                )}
             </>
           )}
         </div>

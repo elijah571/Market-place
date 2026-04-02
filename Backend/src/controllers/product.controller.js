@@ -1,6 +1,5 @@
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Product } from '../models/product.model.js';
-import APIFunctionality from '../utils/apiFunctionality.js';
 import { AppError } from '../utils/AppError.js';
 import {
   deleteFromCloudinary,
@@ -8,6 +7,7 @@ import {
 } from '../utils/cloudinary.js';
 import { sendSuccess } from '../utils/response.js';
 import { clearCommerceCache } from '../utils/cache.js';
+import { productCatalogService } from '../services/catalog/product-catalog.service.js';
 
 const parseMaybeJson = (value, fallback = null) => {
   if (value === undefined || value === null) return fallback;
@@ -133,9 +133,6 @@ const cleanupUploadedImages = async (images = []) => {
   );
 };
 
-const productListProjection =
-  'name price image rating numOfReviews category subcategory stock colors sizes variants createdAt viewCount';
-
 /* ===============================
    CREATE PRODUCT
 ================================= */
@@ -207,100 +204,14 @@ export const createProduct = asyncHandler(async (req, res) => {
    GET ALL PRODUCTS (PUBLIC)
 ================================= */
 export const getAllProducts = asyncHandler(async (req, res) => {
-  const resultPerPage = Math.min(Number(req.query.limit) || 8, 50);
-  const page = Math.max(Number(req.query.page) || 1, 1);
-
-  const apiFeatures = new APIFunctionality(
-    Product.find().select(productListProjection),
-    req.query
-  )
-    .search()
-    .filter();
-
-  const productCount = await Product.countDocuments(apiFeatures.query.getFilter());
-
-  const totalPage = Math.ceil(productCount / resultPerPage);
-
-  if (page > totalPage && productCount > 0) {
-    throw new AppError("This page doesn't exist", 404);
-  }
-
-  apiFeatures.sort().pagination(resultPerPage);
-
-  const products = await apiFeatures.query.lean();
-
-  return sendSuccess(res, {
-    data: products,
-    meta: {
-      results: products.length,
-      productCount,
-      resultPerPage,
-      totalPage,
-      currentPage: page,
-    },
-  });
+  const catalog = await productCatalogService.getPublicCatalog(req.query);
+  return sendSuccess(res, catalog);
 });
 
 export const getProductMeta = asyncHandler(async (_req, res) => {
-  const [categories, priceSummary] = await Promise.all([
-    Product.aggregate([
-      {
-        $group: {
-          _id: {
-            category: '$category',
-            subcategory: '$subcategory',
-          },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: {
-          '_id.category': 1,
-          '_id.subcategory': 1,
-        },
-      },
-    ]),
-    Product.aggregate([
-      {
-        $group: {
-          _id: null,
-          minPrice: { $min: '$price' },
-          maxPrice: { $max: '$price' },
-        },
-      },
-    ]),
-  ]);
-
-  const groupedCategories = categories.reduce((acc, entry) => {
-    const categoryName = entry._id?.category || 'Uncategorized';
-    if (!acc[categoryName]) {
-      acc[categoryName] = {
-        label: categoryName,
-        count: 0,
-        subcategories: [],
-      };
-    }
-
-    acc[categoryName].count += entry.count;
-
-    if (entry._id?.subcategory) {
-      acc[categoryName].subcategories.push({
-        label: entry._id.subcategory,
-        count: entry.count,
-      });
-    }
-
-    return acc;
-  }, {});
-
+  const meta = await productCatalogService.getProductMeta();
   return sendSuccess(res, {
-    data: {
-      categories: Object.values(groupedCategories),
-      priceRange: {
-        min: Number(priceSummary[0]?.minPrice || 0),
-        max: Number(priceSummary[0]?.maxPrice || 0),
-      },
-    },
+    data: meta,
   });
 });
 
@@ -308,46 +219,16 @@ export const getProductMeta = asyncHandler(async (_req, res) => {
    GET SINGLE PRODUCT
 ================================= */
 export const getSingleProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findByIdAndUpdate(
-    req.params.id,
-    { $inc: { viewCount: 1 } },
-    { new: true, runValidators: false }
-  ).lean();
-
-  if (!product) {
-    throw new AppError('Product not found', 404);
-  }
+  const product = await productCatalogService.getSingleProduct(req.params.id);
 
   return sendSuccess(res, { data: product });
 });
 
 export const getProductRecommendations = asyncHandler(async (req, res) => {
-  const sourceProduct = await Product.findById(req.params.id)
-    .select('category subcategory')
-    .lean();
-
-  if (!sourceProduct) {
-    throw new AppError('Product not found', 404);
-  }
-
-  const recommendations = await Product.find({
-    _id: { $ne: req.params.id },
-    $or: [
-      { subcategory: sourceProduct.subcategory || null },
-      { category: sourceProduct.category || null },
-    ],
-  })
-    .select(productListProjection)
-    .sort({ rating: -1, viewCount: -1, createdAt: -1 })
-    .limit(8)
-    .lean();
-
-  return sendSuccess(res, {
-    data: recommendations,
-    meta: {
-      results: recommendations.length,
-    },
-  });
+  const recommendations = await productCatalogService.getRecommendations(
+    req.params.id
+  );
+  return sendSuccess(res, recommendations);
 });
 
 /* ===============================
@@ -476,33 +357,8 @@ export const deleteProduct = asyncHandler(async (req, res) => {
    (Same as public but without restriction)
 ================================= */
 export const getAdminProducts = asyncHandler(async (req, res) => {
-  const resultPerPage = Math.min(Number(req.query.limit) || 8, 100);
-  const page = Math.max(Number(req.query.page) || 1, 1);
-
-  const apiFeatures = new APIFunctionality(Product.find(), req.query)
-    .search()
-    .filter();
-
-  const productCount = await Product.countDocuments(apiFeatures.query.getFilter());
-  const totalPage = Math.ceil(productCount / resultPerPage);
-
-  if (page > totalPage && productCount > 0) {
-    throw new AppError("This page doesn't exist", 404);
-  }
-
-  apiFeatures.sort().pagination(resultPerPage);
-  const products = await apiFeatures.query.lean();
-
-  return sendSuccess(res, {
-    data: products,
-    meta: {
-      results: products.length,
-      productCount,
-      resultPerPage,
-      totalPage,
-      currentPage: page,
-    },
-  });
+  const catalog = await productCatalogService.getAdminCatalog(req.query);
+  return sendSuccess(res, catalog);
 });
 
 /* ===============================

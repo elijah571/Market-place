@@ -1,28 +1,53 @@
 import dotenv from 'dotenv';
 import { connectDb } from './config/db.js';
 import app from './app.js';
+import { logger } from './utils/logger.js';
 
 dotenv.config();
 
-connectDb();
-
 const PORT = process.env.PORT || 6000;
+let server;
 
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+const shutdown = (signal, error = null) => {
+  if (error) {
+    logger.error(`Process shutting down after ${signal}`, {
+      message: error.message,
+      stack: error.stack,
+    });
+  } else {
+    logger.info(`Process received ${signal}, shutting down gracefully`);
+  }
+
+  if (!server) {
+    process.exit(error ? 1 : 0);
+    return;
+  }
+
+  server.close(() => {
+    process.exit(error ? 1 : 0);
+  });
+};
+
+const bootstrap = async () => {
+  await connectDb();
+
+  server = app.listen(PORT, () => {
+    logger.info('Server started', {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+    });
+  });
+};
+
+bootstrap().catch((error) => shutdown('bootstrap_error', error));
 
 process.on('unhandledRejection', (err) => {
-  console.log(`Error: ${err.message}`);
-  console.log(`Server is shutting down, due to unhandled promis rejection`);
-  server.close(() => {
-    process.exit(1);
-  });
+  shutdown('unhandledRejection', err);
 });
 
 process.on('uncaughtException', (err) => {
-  console.log(`Error: ${err.message}`);
-  console.log(`Server is shutting down, due to uncaught Exception errors`);
-
-  process.exit(1);
+  shutdown('uncaughtException', err);
 });
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import '../pageStyles/Products.css';
 import PageTitle from '../components/PageTitle';
 import Navbar from '../components/Navbar';
@@ -12,7 +12,8 @@ import NoProduct from '../components/NoProduct';
 import Pagination from '../components/Pagination';
 import FiltersPanel from '../components/FiltersPanel';
 import ProductSkeletonGrid from '../components/ProductSkeletonGrid';
-import { storefrontService } from '../services/storefront.service';
+import { pickRandomBackground } from '../utils/backgrounds';
+import { useCatalogMeta } from '../features/catalog/catalogQueries';
 
 const Products = () => {
   const { loading, error, products, productCount, totalPage } = useSelector(
@@ -22,10 +23,13 @@ const Products = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
-  const [catalogMeta, setCatalogMeta] = useState({
-    categories: [],
-    priceRange: { min: 0, max: 5000 },
-  });
+  const heroBackground = useMemo(() => pickRandomBackground(), []);
+  const {
+    data: catalogMeta = {
+      categories: [],
+      priceRange: { min: 0, max: 5000 },
+    },
+  } = useCatalogMeta();
 
   const searchParams = new URLSearchParams(location.search);
   const keyword = searchParams.get('keyword');
@@ -58,15 +62,6 @@ const Products = () => {
       })
     );
   }, [dispatch, keyword, currentPage, category, maxPrice, minimumRating, sortBy]);
-
-  useEffect(() => {
-    storefrontService
-      .getProductMeta()
-      .then((data) =>
-        setCatalogMeta(data || { categories: [], priceRange: { min: 0, max: 5000 } })
-      )
-      .catch(() => null);
-  }, []);
 
   useEffect(() => {
     if (error) {
@@ -141,6 +136,32 @@ const Products = () => {
     <>
       <PageTitle title="All Products" />
       <Navbar />
+      <section
+        className="catalog-hero home-surface home-backdrop"
+        style={{ '--hero-image': `url(${heroBackground})` }}
+      >
+        <div className="catalog-hero-copy">
+          <p className="products-kicker">Catalog layout refresh</p>
+          <h1>{keyword ? `Results for "${keyword}"` : 'Find products through a cleaner visual catalog'}</h1>
+          <p className="products-subtitle">
+            Explore curated categories, tighter filtering, and a stronger editorial header with rotating imagery.
+          </p>
+        </div>
+        <div className="catalog-hero-metrics">
+          <article>
+            <strong>{productCount || 0}</strong>
+            <span>Products in this view</span>
+          </article>
+          <article>
+            <strong>{catalogMeta.categories.length || 0}</strong>
+            <span>Departments</span>
+          </article>
+          <article>
+            <strong>{totalPage || 1}</strong>
+            <span>Pages of results</span>
+          </article>
+        </div>
+      </section>
       <div className="products-layout">
         <FiltersPanel
           categories={catalogMeta.categories}
@@ -169,6 +190,19 @@ const Products = () => {
               <strong>{totalPage || 1}</strong>
               <span>pages of results</span>
             </div>
+          </div>
+          <div className="catalog-feature-row">
+            {(catalogMeta.categories || []).slice(0, 3).map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                className={`catalog-feature-card ${category === item.label ? 'active' : ''}`}
+                onClick={() => handleCategory(item.label)}
+              >
+                <strong>{item.label}</strong>
+                <span>{item.count} items</span>
+              </button>
+            ))}
           </div>
 
           {loading ? (

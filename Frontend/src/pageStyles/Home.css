@@ -14,14 +14,56 @@
 }
 
 .home-page {
-  padding-top: 2rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1rem;
+}
+
+.home-container {
+  display: grid;
+  gap: 1.5rem;
 }
 
 .home-hero {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: 2rem;
-  padding: 2rem 0 1rem;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  min-height: 35rem;
+}
+
+.home-surface {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.92));
+  border-radius: calc(var(--radius-lg) + 8px);
+  box-shadow: var(--shadow-md);
+}
+
+.home-backdrop {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(112deg, rgba(20, 24, 31, 0.78), rgba(20, 24, 31, 0.16)),
+    var(--hero-image) center / cover no-repeat;
+  transform: scale(1.04);
+}
+
+.home-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: auto -8% -32% auto;
+  width: 20rem;
+  height: 20rem;
+  z-index: -1;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(246, 139, 30, 0.4), rgba(246, 139, 30, 0));
 }
 
 .home-hero-copy,
@@ -64,6 +106,14 @@
 .social-box,
 .stat-box {
   padding: 1.5rem;
+}
+
+.home-hero-copy {
+  display: grid;
+  align-content: space-between;
+  gap: 1rem;
+  min-height: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.9));
 }
 
 .home-kicker,
@@ -155,6 +205,22 @@
 .hero-panel-card.accent {
   background: linear-gradient(135deg, var(--secondary-main), #515151);
   color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-panel-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 10, 10, 0.1), rgba(10, 10, 10, 0.55)),
+    var(--spotlight-image) center / cover no-repeat;
+  opacity: 0.42;
+}
+
+.hero-panel-spotlight > * {
+  position: relative;
 }
 
 .hero-panel-grid,
@@ -169,6 +235,26 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
   margin: 1rem 0 2rem;
+}
+
+.home-editorial-ribbon {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.home-editorial-ribbon article {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.home-editorial-ribbon span {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.74rem;
+  color: var(--primary-main);
 }
 
 .home-feature-strip article p {
@@ -214,4 +300,103 @@
 .home-empty-state {
   color: var(--text-soft);
   padding: 1rem 0;
+}
+
+.catalog-hero {
+  width: min(var(--content-width), calc(100% - 2rem));
+  margin: 1.5rem auto 0;
+  padding: 1.75rem;
+  display: grid;
+  grid-template-columns: 1.5fr 0.85fr;
+  gap: 1rem;
+  align-items: end;
+}
+
+.catalog-hero-copy {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 50rem;
+}
+
+.catalog-hero-copy h1 {
+  color: white;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.02;
+}
+
+.catalog-hero-copy .products-kicker,
+.catalog-hero-copy .products-subtitle {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.catalog-hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.catalog-hero-metrics article {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.92);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.catalog-hero-metrics strong {
+  font-size: 1.8rem;
+}
+
+.catalog-feature-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.catalog-feature-card {
+  border: 1px solid rgba(34, 34, 34, 0.08);
+  background: white;
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+}
+
+.catalog-feature-card span {
+  color: var(--text-soft);
+}
+
+.catalog-feature-card.active {
+  border-color: rgba(246, 139, 30, 0.4);
+  background: linear-gradient(180deg, rgba(246, 139, 30, 0.12), rgba(255, 255, 255, 0.98));
+}
+
+@media (max-width: 1024px) {
+  .home-hero,
+  .catalog-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-hero-metrics,
+  .home-editorial-ribbon,
+  .home-feature-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-hero {
+    padding: 1rem;
+    min-height: auto;
+  }
+
+  .home-hero-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-feature-row {
+    grid-template-columns: 1fr;
+  }
 }

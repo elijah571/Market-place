@@ -19,6 +19,7 @@ import { withCache } from '../utils/cache.js';
 import {
   createProductSchema,
   createReviewSchema,
+  productCatalogQuerySchema,
   updateProductSchema,
 } from '../validation/product.validation.js';
 
@@ -26,7 +27,7 @@ const router = express.Router();
 
 router
   .route('/products/meta')
-  .get(withCache(5 * 60 * 1000), getProductMeta);
+  .get(validate(productCatalogQuerySchema, 'query'), withCache(5 * 60 * 1000), getProductMeta);
 router
   .route('/products')
   .post(
@@ -39,10 +40,16 @@ router
     validate(createProductSchema),
     createProduct
   )
-  .get(withCache(60 * 1000), getAllProducts);
+  .get(validate(productCatalogQuerySchema, 'query'), withCache(60 * 1000), getAllProducts);
 router
   .route('/admin/products')
-  .get(isAuthenticated, isAdmin, withCache(60 * 1000), getAdminProducts);
+  .get(
+    isAuthenticated,
+    isAdmin,
+    validate(productCatalogQuerySchema, 'query'),
+    withCache(60 * 1000),
+    getAdminProducts
+  );
 
 router
   .route('/product/reviews')

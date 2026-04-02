@@ -33,6 +33,24 @@ export const isAuthenticated = asyncHandler(async (req, res, next) => {
   next();
 });
 
+export const authorizeRoles = (...allowedRoles) =>
+  asyncHandler(async (req, res, next) => {
+    const user = req.user;
+
+    if (!user) {
+      throw new AppError('User is not authenticated', 401);
+    }
+
+    if (!allowedRoles.includes(user.role)) {
+      throw new AppError(
+        'You do not have permission to access this resource',
+        403
+      );
+    }
+
+    next();
+  });
+
 // Admin has full access to everything, including Shipper routes
 export const isAdmin = asyncHandler(async (req, res, next) => {
   const user = req.user;

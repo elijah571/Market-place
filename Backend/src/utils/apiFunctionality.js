@@ -1,6 +1,35 @@
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const parseFilterValue = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => parseFilterValue(entry));
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+
+  if (trimmed === 'true') {
+    return true;
+  }
+
+  if (trimmed === 'false') {
+    return false;
+  }
+
+  return trimmed;
+};
+
 class APIFunctionality {
   constructor(query, queryStr) {
     this.query = query;
@@ -30,23 +59,48 @@ class APIFunctionality {
 
   filter() {
     const queryCopy = { ...this.queryStr };
-
     const removeFields = ['keyword', 'page', 'limit', 'sort'];
     removeFields.forEach((key) => delete queryCopy[key]);
 
-    if (queryCopy.category && typeof queryCopy.category === 'string') {
-      const categories = queryCopy.category
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean);
+    const filter = Object.entries(queryCopy).reduce((acc, [rawKey, rawValue]) => {
+      if (rawValue === undefined || rawValue === null || rawValue === '') {
+        return acc;
+      }
 
-      queryCopy.category = categories.length > 1 ? { in: categories } : categories[0];
-    }
+      const operatorMatch = rawKey.match(/^([^[\]]+)\[(gte|gt|lte|lt|in)\]$/);
 
-    let queryStr = JSON.stringify(queryCopy);
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt|in)\b/g, (key) => `$${key}`);
+      if (operatorMatch) {
+        const [, field, operator] = operatorMatch;
+        const normalizedValue =
+          operator === 'in' && typeof rawValue === 'string'
+            ? rawValue
+                .split(',')
+                .map((value) => parseFilterValue(value))
+                .filter(Boolean)
+            : parseFilterValue(rawValue);
 
-    this.query = this.query.find(JSON.parse(queryStr));
+        acc[field] = {
+          ...(acc[field] || {}),
+          [`$${operator}`]: normalizedValue,
+        };
+        return acc;
+      }
+
+      if (rawKey === 'category' && typeof rawValue === 'string') {
+        const categories = rawValue
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean);
+
+        acc.category = categories.length > 1 ? { $in: categories } : categories[0];
+        return acc;
+      }
+
+      acc[rawKey] = parseFilterValue(rawValue);
+      return acc;
+    }, {});
+
+    this.query = this.query.find(filter);
     return this;
   }
 

@@ -1,46 +1,141 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import '../componentStyles/Navbar.css';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  Close,
-  DashboardCustomizeOutlined,
-  FavoriteBorder,
-  Menu,
-  PersonAddAlt1Outlined,
-  PersonOutline,
-  Search,
-  ShoppingCartOutlined,
-  StorefrontOutlined,
-} from '@mui/icons-material';
+import { Close } from '@mui/icons-material';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { storefrontService } from '../services/storefront.service';
+import NavbarBrand from './navbar/NavbarBrand';
+import NavbarSearch from './navbar/NavbarSearch';
+import NavbarActions from './navbar/NavbarActions';
+import {
+  getAccountLinks,
+  getQuickActionLinks,
+  PRIMARY_NAV_LINKS,
+} from './navbar/navbar.config';
+import { useDebouncedValue } from '../utils/useDebouncedValue';
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [categories, setCategories] = useState([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const accountMenuRef = useRef(null);
   const { isAuthenticated, user, wishlist } = useSelector((state) => state.user);
   const cartItemsCount = useSelector((state) =>
     state.cart.items.reduce((sum, item) => sum + item.quantity, 0)
   );
+  const currentKeyword = new URLSearchParams(location.search).get('keyword') || '';
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 350);
+
+  const isAdmin = isAuthenticated && user?.role === 'admin';
+  const quickActionLinks = getQuickActionLinks({ isAuthenticated });
+  const accountLinks = getAccountLinks({ isAuthenticated, isAdmin });
 
   useEffect(() => {
-    storefrontService
-      .getProductMeta()
-      .then((data) => setCategories((data?.categories || []).slice(0, 6)))
-      .catch(() => setCategories([]));
+    document.body.style.overflow = isDrawerOpen ? 'hidden' : '';
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isDrawerOpen]);
+
+  useEffect(() => {
+    setSearchQuery(currentKeyword);
+  }, [currentKeyword]);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(event.target)
+      ) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsDrawerOpen(false);
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/products')) {
+      return;
+    }
+
+    if (searchQuery !== debouncedSearchQuery) {
+      return;
+    }
+
+    const normalizedQuery = debouncedSearchQuery.trim();
+    if (normalizedQuery === currentKeyword) {
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams(location.search);
+
+    if (normalizedQuery) {
+      nextSearchParams.set('keyword', normalizedQuery);
+    } else {
+      nextSearchParams.delete('keyword');
+    }
+
+    nextSearchParams.delete('page');
+
+    navigate(
+      {
+        pathname: '/products',
+        search: nextSearchParams.toString()
+          ? `?${nextSearchParams.toString()}`
+          : '',
+      },
+      { replace: true }
+    );
+  }, [
+    currentKeyword,
+    debouncedSearchQuery,
+    location.pathname,
+    location.search,
+    navigate,
+    searchQuery,
+  ]);
+
+  const closeMenus = () => {
+    setIsDrawerOpen(false);
+    setIsAccountMenuOpen(false);
+  };
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
 
     if (searchQuery.trim()) {
       navigate(`/products?keyword=${encodeURIComponent(searchQuery.trim())}`);
+      closeMenus();
       return;
     }
 
     navigate('/products');
+    closeMenus();
+  };
+
+  const toggleDrawer = () => {
+    setIsDrawerOpen((prev) => !prev);
+    setIsAccountMenuOpen(false);
+  };
+
+  const toggleAccountMenu = () => {
+    setIsAccountMenuOpen((prev) => !prev);
   };
 
   return (
@@ -48,103 +143,167 @@ const Navbar = () => {
       <div className="navbar-announcement">
         <p>Daily deals, secure checkout, and modern storefront performance in one experience.</p>
       </div>
-      <nav className="navbar">
+
+      <nav className="navbar" aria-label="Primary">
         <div className="navbar-container">
-          <Link to="/" className="navbar-logo">
-            <span className="navbar-logo-mark">
-              <StorefrontOutlined fontSize="small" />
-            </span>
-            <span>
-              Market<span>Place</span>
-            </span>
-          </Link>
+          <div className="navbar-row">
+            <div className="navbar-left">
+              <NavbarBrand onNavigate={closeMenus} />
 
-          <form className="navbar-search" onSubmit={handleSearchSubmit}>
-            <Search fontSize="small" />
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search products, categories, or brands"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              <div className="navbar-desktop-nav">
+                <ul className="navbar-link-list">
+                  {PRIMARY_NAV_LINKS.map((item) => {
+                    const Icon = item.icon;
+
+                    return (
+                      <li key={item.to} className="navbar-link-item">
+                        <NavLink
+                          to={item.to}
+                          end={item.end}
+                          className={({ isActive }) =>
+                            `navbar-main-link${isActive ? ' is-active' : ''}`
+                          }
+                          onClick={closeMenus}
+                        >
+                          <Icon fontSize="small" aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+
+            <div className="navbar-center">
+              <NavbarSearch
+                searchQuery={searchQuery}
+                onSearchQueryChange={setSearchQuery}
+                onSubmit={handleSearchSubmit}
+              />
+            </div>
+
+            <NavbarActions
+              isAuthenticated={isAuthenticated}
+              user={user}
+              wishlistCount={wishlist?.length || 0}
+              cartCount={cartItemsCount}
+              accountLinks={accountLinks}
+              isAccountMenuOpen={isAccountMenuOpen}
+              onToggleAccountMenu={toggleAccountMenu}
+              onCloseMenus={closeMenus}
+              accountMenuRef={accountMenuRef}
+              isDrawerOpen={isDrawerOpen}
+              onToggleDrawer={toggleDrawer}
             />
-            <button type="submit">Search</button>
-          </form>
-
-          <div className={`navbar-links ${isMenuOpen ? 'active' : ''}`}>
-            <div className="navbar-links-main">
-              <Link to="/">Home</Link>
-              <Link to="/products">Shop</Link>
-              {categories.map((category) => (
-                <Link
-                  key={category.label}
-                  to={`/products?category=${encodeURIComponent(category.label)}`}
-                >
-                  {category.label}
-                </Link>
-              ))}
-            </div>
-            <div className="navbar-links-mobile-actions">
-              <Link to="/cart">Cart</Link>
-              <Link to="/favorites">Wishlist</Link>
-              {isAuthenticated ? <Link to="/profile">My Account</Link> : <Link to="/login">Login</Link>}
-            </div>
-          </div>
-
-          <div className="navbar-actions">
-            <Link to="/favorites" className="navbar-icon-link" aria-label="Wishlist">
-              <FavoriteBorder fontSize="small" />
-              <span>{wishlist.length}</span>
-            </Link>
-            <Link to="/cart" className="navbar-icon-link" aria-label="Cart">
-              <ShoppingCartOutlined fontSize="small" />
-              <span>{cartItemsCount}</span>
-            </Link>
-            {isAuthenticated ? (
-              <Link to="/profile" className="navbar-profile-link">
-                <PersonOutline fontSize="small" />
-                <span>{user?.name?.split(' ')[0] || 'Account'}</span>
-              </Link>
-            ) : (
-              <Link to="/signup" className="navbar-profile-link">
-                <PersonAddAlt1Outlined fontSize="small" />
-                <span>Join</span>
-              </Link>
-            )}
-            {isAuthenticated && user?.role === 'admin' && (
-              <Link to="/admin/dashboard" className="navbar-admin-link">
-                <DashboardCustomizeOutlined fontSize="small" />
-                <span>Admin</span>
-              </Link>
-            )}
-            <button
-              type="button"
-              className="navbar-hamburger"
-              onClick={() => setIsMenuOpen((prev) => !prev)}
-              aria-label="Toggle navigation"
-            >
-              {isMenuOpen ? <Close className="icon" /> : <Menu className="icon" />}
-            </button>
           </div>
         </div>
       </nav>
 
-      {categories.length > 0 && (
-        <div className="navbar-category-bar">
-          <div className="navbar-category-track">
-            {categories.map((category) => (
-              <Link
-                key={`bar-${category.label}`}
-                to={`/products?category=${encodeURIComponent(category.label)}`}
-                className="navbar-category-pill"
-              >
-                <span>{category.label}</span>
-                <small>{category.count}</small>
-              </Link>
-            ))}
-          </div>
+      {isDrawerOpen ? (
+        <button
+          type="button"
+          className="navbar-overlay"
+          onClick={closeMenus}
+          aria-label="Close navigation drawer"
+        />
+      ) : null}
+
+      <aside
+        id="navbar-mobile-drawer"
+        className={`navbar-drawer${isDrawerOpen ? ' is-open' : ''}`}
+        aria-hidden={!isDrawerOpen}
+      >
+        <div className="navbar-drawer-header">
+          <NavbarBrand onNavigate={closeMenus} />
+          <button
+            type="button"
+            className="navbar-drawer-close"
+            onClick={closeMenus}
+            aria-label="Close navigation drawer"
+          >
+            <Close fontSize="small" />
+          </button>
         </div>
-      )}
+
+        <div className="navbar-drawer-body">
+          <section className="navbar-drawer-section" aria-labelledby="navbar-mobile-primary">
+            <p id="navbar-mobile-primary" className="navbar-drawer-eyebrow">
+              Browse
+            </p>
+            <div className="navbar-drawer-links">
+              {PRIMARY_NAV_LINKS.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      `navbar-mobile-link${isActive ? ' is-active' : ''}`
+                    }
+                    onClick={closeMenus}
+                  >
+                    <Icon fontSize="small" aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="navbar-drawer-section" aria-labelledby="navbar-mobile-actions">
+            <p id="navbar-mobile-actions" className="navbar-drawer-eyebrow">
+              Quick actions
+            </p>
+            <div className="navbar-drawer-links">
+              {quickActionLinks.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `navbar-mobile-link${isActive ? ' is-active' : ''}`
+                    }
+                    onClick={closeMenus}
+                  >
+                    <Icon fontSize="small" aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="navbar-drawer-section" aria-labelledby="navbar-mobile-account">
+            <p id="navbar-mobile-account" className="navbar-drawer-eyebrow">
+              Account
+            </p>
+            <div className="navbar-drawer-links">
+              {accountLinks.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `navbar-mobile-link${isActive ? ' is-active' : ''}`
+                    }
+                    onClick={closeMenus}
+                  >
+                    <Icon fontSize="small" aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      </aside>
     </header>
   );
 };

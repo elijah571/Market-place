@@ -2,7 +2,8 @@
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 1.5rem;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
+  align-items: start;
 }
 
 .products-section {
@@ -13,11 +14,19 @@
 .products-summary-card {
   min-width: 160px;
   text-align: center;
+  background: linear-gradient(180deg, rgba(246, 139, 30, 0.1), #fff);
 }
 
 .products-summary-card strong {
   display: block;
   font-size: 2rem;
+}
+
+.products-page-header {
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.92));
+  box-shadow: var(--shadow-sm);
 }
 
 @media (max-width: 900px) {

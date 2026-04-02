@@ -69,3 +69,37 @@ export const createReviewSchema = z.object({
   comment: z.string().trim().min(3, 'Review comment must be at least 3 characters'),
   productId: z.string().min(1, 'productId is required'),
 });
+
+const optionalNumberString = z
+  .string()
+  .trim()
+  .optional()
+  .refine((value) => value === undefined || value === '' || !Number.isNaN(Number(value)), {
+    message: 'Filter value must be numeric',
+  });
+
+export const productCatalogQuerySchema = z.object({
+  keyword: z.string().trim().optional(),
+  page: optionalNumberString,
+  limit: optionalNumberString,
+  sort: z
+    .enum([
+      'newest',
+      'oldest',
+      'priceAsc',
+      'priceDesc',
+      'ratingDesc',
+      'popular',
+      'viewedDesc',
+      'stockDesc',
+    ])
+    .optional(),
+  category: z.string().trim().optional(),
+  subcategory: z.string().trim().optional(),
+  'price[lte]': optionalNumberString,
+  'price[gte]': optionalNumberString,
+  'rating[gte]': optionalNumberString,
+  'rating[lte]': optionalNumberString,
+  'stock[gte]': optionalNumberString,
+  'stock[lte]': optionalNumberString,
+});
