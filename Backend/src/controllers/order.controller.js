@@ -1,25 +1,19 @@
+import mongoose from 'mongoose';
 import { Order } from '../models/order.model.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
-import { Product } from '../models/product.model.js';
 import { AppError } from '../utils/AppError.js';
 import { sendSuccess } from '../utils/response.js';
-
-const findVariant = (product, item) => {
-  if (!item?.selectedColor && !item?.selectedSize && !item?.variantId) {
-    return null;
-  }
-
-  return product.variants.find((variant) => {
-    if (item.variantId && variant._id.toString() === String(item.variantId)) {
-      return true;
-    }
-
-    return (
-      variant.color === String(item.selectedColor || '').toLowerCase() &&
-      variant.size === String(item.selectedSize || '').toUpperCase()
-    );
-  });
-};
+import { clearCommerceCache } from '../utils/cache.js';
+import {
+  buildCartSnapshot,
+  isShippingInfoComplete,
+  reserveInventoryForItems,
+} from '../services/commerce/cart.service.js';
+import {
+  appendOrderTimelineEntry,
+  createOrderDocument,
+  PAYMENT_STATUS,
+} from '../services/commerce/order.service.js';
 
 /* ===============================
    CREATE NEW ORDER
@@ -29,9 +23,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     shippingInfo,
     orderItems,
     paymentInfo,
-    itemPrice,
-    taxPrice,
-    shippingPrice,
+    promoCode,
     totalPrice,
   } = req.body;
 
@@ -39,87 +31,77 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw new AppError('Order items and shipping info are required', 400);
   }
 
-  const productIds = [...new Set(orderItems.map((item) => String(item.product)))];
-  const products = await Product.find({ _id: { $in: productIds } })
-    .select('name stock price image variants')
-    .lean();
-
-  const productMap = new Map(
-    products.map((product) => [String(product._id), product])
-  );
-
-  const validatedItems = orderItems.map((item) => {
-    const product = productMap.get(String(item.product));
-
-    if (!product) {
-      throw new AppError(`Product not found for item ${item.name}`, 404);
-    }
-
-    const quantity = Number(item.quantity || 0);
-    if (quantity <= 0) {
-      throw new AppError('Item quantity must be greater than 0', 400);
-    }
-
-    const matchedVariant = findVariant(product, item);
-
-    if (matchedVariant && matchedVariant.stock < quantity) {
-      throw new AppError(
-        `Insufficient stock for ${product.name} (${matchedVariant.color}/${matchedVariant.size})`,
-        400
-      );
-    }
-
-    if (!matchedVariant && product.stock < quantity) {
-      throw new AppError(`Insufficient stock for ${product.name}`, 400);
-    }
-
-    const unitPrice = Number(
-      (
-        Number(product.price) + Number(matchedVariant?.priceDelta || 0)
-      ).toFixed(2)
-    );
-
-    return {
-      name: product.name,
-      price: unitPrice,
-      quantity,
-      image: matchedVariant?.image?.url || product.image?.[0]?.url || '',
-      product: item.product,
-      selectedColor: matchedVariant?.color || item.selectedColor || '',
-      selectedSize: matchedVariant?.size || item.selectedSize || '',
-      variantId: matchedVariant?._id || item.variantId || null,
-    };
+  const snapshot = await buildCartSnapshot({
+    items: orderItems,
+    shippingInfo,
+    promoCode,
+    currency: paymentInfo?.currency || 'USD',
   });
 
-  const computedItemPrice = Number(
-    validatedItems
-      .reduce((sum, item) => sum + item.price * item.quantity, 0)
-      .toFixed(2)
-  );
-  const normalizedTaxPrice = Number(Number(taxPrice || 0).toFixed(2));
-  const normalizedShippingPrice = Number(Number(shippingPrice || 0).toFixed(2));
-  const computedTotalPrice = Number(
-    (computedItemPrice + normalizedTaxPrice + normalizedShippingPrice).toFixed(2)
-  );
+  if (!snapshot.items.length) {
+    throw new AppError('No valid items remain in this order', 400);
+  }
 
-  if (Math.abs(computedTotalPrice - Number(totalPrice || 0)) > 0.01) {
+  if (!isShippingInfoComplete(snapshot.shippingInfo)) {
+    throw new AppError('Shipping information is incomplete', 400);
+  }
+
+  if (snapshot.issues.length > 0) {
+    throw new AppError(snapshot.issues[0].message, 400);
+  }
+
+  if (Math.abs(snapshot.summary.totalPrice - Number(totalPrice || 0)) > 0.01) {
     throw new AppError(
       'Order total mismatch. Please refresh your cart and try again.',
       400
     );
   }
 
-  const order = await Order.create({
-    shippingInfo,
-    orderItems: validatedItems,
-    paymentInfo,
-    paidAt: paymentInfo?.status === 'Paid' ? Date.now() : null,
-    itemPrice: computedItemPrice,
-    taxPrice: normalizedTaxPrice,
-    shippingPrice: normalizedShippingPrice,
-    totalPrice: computedTotalPrice,
-    user: req.user._id,
-  });
+  const session = await mongoose.startSession();
+  let order;
+  const requestedPaymentStatus = String(
+    paymentInfo?.status || PAYMENT_STATUS.PENDING
+  );
+  const isPaid =
+    requestedPaymentStatus.toLowerCase() === PAYMENT_STATUS.PAID.toLowerCase();
+  const normalizedPaymentStatus = isPaid
+    ? PAYMENT_STATUS.PAID
+    : PAYMENT_STATUS.PENDING;
+
+  try {
+    session.startTransaction();
+
+    await reserveInventoryForItems(snapshot.items, { session });
+
+    [order] = await Order.create(
+      [
+        createOrderDocument({
+          userId: req.user._id,
+          snapshot,
+          payment: {
+            id: paymentInfo?.id || '',
+            gateway: paymentInfo?.gateway || '',
+            status: normalizedPaymentStatus,
+            providerStatus: paymentInfo?.providerStatus || '',
+            currency: paymentInfo?.currency || 'USD',
+            amountPaid: isPaid ? snapshot.summary.totalPrice : 0,
+          },
+          orderStatus: isPaid ? 'Processing' : 'PendingPayment',
+          actor: 'customer',
+        }),
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+
+  clearCommerceCache();
 
   return sendSuccess(res, {
     status: 201,
@@ -132,14 +114,36 @@ export const getAllMyOrders = asyncHandler(async (req, res) => {
   const page = Number(req.query.page) || 1;
   const limit = Math.min(Number(req.query.limit) || 10, 100);
   const skip = (page - 1) * limit;
+  const orderStatus = String(req.query.status || '').trim();
+  const paymentStatus = String(req.query.paymentStatus || '').trim();
+  const search = String(req.query.search || '').trim();
+
+  const query = {
+    user: req.user._id,
+  };
+
+  if (orderStatus) {
+    query.orderStatus = orderStatus;
+  }
+
+  if (paymentStatus) {
+    query['paymentInfo.status'] = paymentStatus;
+  }
+
+  if (search) {
+    query.$or = [
+      { 'orderItems.name': { $regex: search, $options: 'i' } },
+      { promoCode: { $regex: search, $options: 'i' } },
+    ];
+  }
 
   const [orders, total] = await Promise.all([
-    Order.find({ user: req.user._id })
+    Order.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
-    Order.countDocuments({ user: req.user._id }),
+    Order.countDocuments(query),
   ]);
 
   return sendSuccess(res, {
@@ -148,6 +152,7 @@ export const getAllMyOrders = asyncHandler(async (req, res) => {
       results: orders.length,
       total,
       page,
+      limit,
       totalPage: Math.ceil(total / limit),
     },
   });
@@ -228,13 +233,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   const requestedStatus = String(req.body.status || '').trim();
-  const allowedStatuses = ['Processing', 'Delivered'];
+  const allowedStatuses = ['Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
   if (!allowedStatuses.includes(requestedStatus)) {
     throw new AppError('Invalid order status', 400);
   }
 
-  // Reduce stock when order is delivered
   if (requestedStatus === 'Delivered') {
     const paymentStatus = String(order.paymentInfo?.status || '').toLowerCase();
     if (paymentStatus !== 'paid') {
@@ -244,70 +248,33 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       );
     }
 
-    await Promise.all(
-      order.orderItems.map((item) =>
-        updateQuantity({
-          productId: item.product,
-          quantity: item.quantity,
-          variantId: item.variantId,
-          selectedColor: item.selectedColor,
-          selectedSize: item.selectedSize,
-        })
-      )
-    );
-
     order.deliveredAt = Date.now();
   }
 
+  if (requestedStatus === 'Shipped' && order.orderStatus === 'Delivered') {
+    throw new AppError('Delivered orders cannot move back to shipped', 400);
+  }
+
+  if (requestedStatus === 'Cancelled' && order.orderStatus === 'Delivered') {
+    throw new AppError('Delivered orders cannot be cancelled', 400);
+  }
+
   order.orderStatus = requestedStatus;
+  appendOrderTimelineEntry(order, {
+    type: 'order',
+    status: requestedStatus,
+    note: `Order status updated to ${requestedStatus}.`,
+    actor: req.user.role || 'admin',
+  });
 
   await order.save();
+  clearCommerceCache();
 
   return sendSuccess(res, {
     message: 'Order updated successfully',
     data: order,
   });
 });
-
-async function updateQuantity({
-  productId,
-  quantity,
-  variantId,
-  selectedColor,
-  selectedSize,
-}) {
-  const product = await Product.findById(productId);
-
-  if (!product) {
-    throw new AppError('Product not found', 404);
-  }
-
-  const matchedVariant =
-    product.variants?.find((variant) => {
-      if (variantId && variant._id.toString() === String(variantId)) {
-        return true;
-      }
-
-      return (
-        variant.color === String(selectedColor || '').toLowerCase() &&
-        variant.size === String(selectedSize || '').toUpperCase()
-      );
-    }) || null;
-
-  if (matchedVariant) {
-    if (matchedVariant.stock < quantity) {
-      throw new AppError('Not enough variant stock available', 400);
-    }
-
-    matchedVariant.stock -= quantity;
-  } else if (product.stock < quantity) {
-    throw new AppError('Not enough stock available', 400);
-  } else {
-    product.stock -= quantity;
-  }
-
-  await product.save({ validateBeforeSave: false });
-}
 
 export const deleteOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
@@ -321,6 +288,7 @@ export const deleteOrder = asyncHandler(async (req, res) => {
   }
 
   await order.deleteOne();
+  clearCommerceCache();
 
   return sendSuccess(res, { message: 'Order deleted successfully' });
 });

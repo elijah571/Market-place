@@ -7,6 +7,7 @@ import {
   uploadsToCloudinary,
 } from '../utils/cloudinary.js';
 import { sendSuccess } from '../utils/response.js';
+import { clearCommerceCache } from '../utils/cache.js';
 
 const parseMaybeJson = (value, fallback = null) => {
   if (value === undefined || value === null) return fallback;
@@ -133,7 +134,7 @@ const cleanupUploadedImages = async (images = []) => {
 };
 
 const productListProjection =
-  'name price image rating numOfReviews category stock colors sizes variants createdAt viewCount';
+  'name price image rating numOfReviews category subcategory stock colors sizes variants createdAt viewCount';
 
 /* ===============================
    CREATE PRODUCT
@@ -193,6 +194,8 @@ export const createProduct = asyncHandler(async (req, res) => {
     throw error;
   }
 
+  clearCommerceCache();
+
   return sendSuccess(res, {
     status: 201,
     message: 'Product created successfully',
@@ -238,6 +241,69 @@ export const getAllProducts = asyncHandler(async (req, res) => {
   });
 });
 
+export const getProductMeta = asyncHandler(async (_req, res) => {
+  const [categories, priceSummary] = await Promise.all([
+    Product.aggregate([
+      {
+        $group: {
+          _id: {
+            category: '$category',
+            subcategory: '$subcategory',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: {
+          '_id.category': 1,
+          '_id.subcategory': 1,
+        },
+      },
+    ]),
+    Product.aggregate([
+      {
+        $group: {
+          _id: null,
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' },
+        },
+      },
+    ]),
+  ]);
+
+  const groupedCategories = categories.reduce((acc, entry) => {
+    const categoryName = entry._id?.category || 'Uncategorized';
+    if (!acc[categoryName]) {
+      acc[categoryName] = {
+        label: categoryName,
+        count: 0,
+        subcategories: [],
+      };
+    }
+
+    acc[categoryName].count += entry.count;
+
+    if (entry._id?.subcategory) {
+      acc[categoryName].subcategories.push({
+        label: entry._id.subcategory,
+        count: entry.count,
+      });
+    }
+
+    return acc;
+  }, {});
+
+  return sendSuccess(res, {
+    data: {
+      categories: Object.values(groupedCategories),
+      priceRange: {
+        min: Number(priceSummary[0]?.minPrice || 0),
+        max: Number(priceSummary[0]?.maxPrice || 0),
+      },
+    },
+  });
+});
+
 /* ===============================
    GET SINGLE PRODUCT
 ================================= */
@@ -253,6 +319,35 @@ export const getSingleProduct = asyncHandler(async (req, res) => {
   }
 
   return sendSuccess(res, { data: product });
+});
+
+export const getProductRecommendations = asyncHandler(async (req, res) => {
+  const sourceProduct = await Product.findById(req.params.id)
+    .select('category subcategory')
+    .lean();
+
+  if (!sourceProduct) {
+    throw new AppError('Product not found', 404);
+  }
+
+  const recommendations = await Product.find({
+    _id: { $ne: req.params.id },
+    $or: [
+      { subcategory: sourceProduct.subcategory || null },
+      { category: sourceProduct.category || null },
+    ],
+  })
+    .select(productListProjection)
+    .sort({ rating: -1, viewCount: -1, createdAt: -1 })
+    .limit(8)
+    .lean();
+
+  return sendSuccess(res, {
+    data: recommendations,
+    meta: {
+      results: recommendations.length,
+    },
+  });
 });
 
 /* ===============================
@@ -327,6 +422,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
       await cleanupUploadedImages(oldVariantImagesToCleanup);
     }
     await cleanupUploadedImages(oldImages);
+    clearCommerceCache();
 
     return sendSuccess(res, {
       message: 'Product updated successfully',
@@ -351,6 +447,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
     await cleanupUploadedImages(oldVariantImagesToCleanup);
   }
 
+  clearCommerceCache();
+
   return sendSuccess(res, {
     message: 'Product updated successfully',
     data: updatedProduct,
@@ -368,6 +466,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   }
 
   await product.deleteOne();
+  clearCommerceCache();
 
   return sendSuccess(res, { message: 'Product deleted successfully' });
 });
@@ -461,6 +560,7 @@ export const addReview = asyncHandler(async (req, res) => {
       : Number((totalRating / product.numOfReviews).toFixed(1));
 
   await product.save();
+  clearCommerceCache();
 
   return sendSuccess(res, {
     message: existingReview
@@ -535,6 +635,7 @@ export const deleteReview = asyncHandler(async (req, res) => {
       : Number((totalRating / product.numOfReviews).toFixed(1));
 
   await product.save();
+  clearCommerceCache();
 
   return sendSuccess(res, { message: 'Review deleted successfully' });
 });

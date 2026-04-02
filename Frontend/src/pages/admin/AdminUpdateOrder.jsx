@@ -18,8 +18,8 @@ const AdminUpdateOrder = () => {
     const fetchOrder = async () => {
       try {
         const { data } = await apiClient.get(`/admin/order/${id}`);
-        setOrder(data?.order || null);
-        setStatus(data?.order?.orderStatus || 'Processing');
+        setOrder(data?.data || null);
+        setStatus(data?.data?.orderStatus || 'Processing');
       } catch (error) {
         toast.error(error.response?.data?.message || 'Unable to load order');
       } finally {
@@ -103,6 +103,7 @@ const AdminUpdateOrder = () => {
           <h2>Status</h2>
           <select className="status-select" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="Processing">Processing</option>
+            <option value="Shipped">Shipped</option>
             <option value="Delivered">Delivered</option>
           </select>
           <button className="update-button" disabled={saving} onClick={onUpdate}>

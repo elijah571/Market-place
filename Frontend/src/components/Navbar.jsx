@@ -1,138 +1,151 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../componentStyles/Navbar.css';
-import '../pageStyles/Search.css';
 import { Link, useNavigate } from 'react-router-dom';
-import SearchIcon from '@mui/icons-material/Search';
 import {
-  ShoppingCart,
-  PersonAdd,
   Close,
-  Menu,
+  DashboardCustomizeOutlined,
   FavoriteBorder,
-  BookmarkBorder,
+  Menu,
+  PersonAddAlt1Outlined,
+  PersonOutline,
+  Search,
+  ShoppingCartOutlined,
+  StorefrontOutlined,
 } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
+import { storefrontService } from '../services/storefront.service';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-
-  const toggleSearch = () => setIsSearchOpen(!isSearchOpen);
   const navigate = useNavigate();
   const { isAuthenticated, user, wishlist } = useSelector((state) => state.user);
   const cartItemsCount = useSelector((state) =>
     state.cart.items.reduce((sum, item) => sum + item.quantity, 0)
   );
-  const handleSearchSubmit = (e) => {
+
+  useEffect(() => {
+    storefrontService
+      .getProductMeta()
+      .then((data) => setCategories((data?.categories || []).slice(0, 6)))
+      .catch(() => setCategories([]));
+  }, []);
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+
     if (searchQuery.trim()) {
       navigate(`/products?keyword=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      navigate(`/products`);
+      return;
     }
-    e.preventDefault();
+
+    navigate('/products');
   };
 
   return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        <div className="navbar-logo">
-          <Link to="/" onClick={() => setIsMenuOpen(false)}>
-            BuyEasy
+    <header className="navbar-shell">
+      <div className="navbar-announcement">
+        <p>Daily deals, secure checkout, and modern storefront performance in one experience.</p>
+      </div>
+      <nav className="navbar">
+        <div className="navbar-container">
+          <Link to="/" className="navbar-logo">
+            <span className="navbar-logo-mark">
+              <StorefrontOutlined fontSize="small" />
+            </span>
+            <span>
+              Market<span>Place</span>
+            </span>
           </Link>
-        </div>
-        <div className={`navbar-links ${isMenuOpen ? 'active' : ''}`}>
-          <ul>
-            <li>
-              <Link to="/" onClick={() => setIsMenuOpen(false)}>
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link to="/products" onClick={() => setIsMenuOpen(false)}>
-                Products
-              </Link>
-            </li>
-            <li>
-              <Link to="/favorites" onClick={() => setIsMenuOpen(false)}>
-                Favorites
-              </Link>
-            </li>
-            <li>
-              <Link to="/saved-products" onClick={() => setIsMenuOpen(false)}>
-                Saved Products
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div className="navbar-icons">
-          <div className="search-container">
-            <div className="search-item">
-              <form
-                className={`search-form ${isSearchOpen ? 'active' : ''}`}
-                onSubmit={handleSearchSubmit}
-              >
-                <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </form>
-              <button
-                type="button"
-                className="search-icon"
-                onClick={toggleSearch}
-              >
-                <SearchIcon focusable="false" />
-              </button>
+
+          <form className="navbar-search" onSubmit={handleSearchSubmit}>
+            <Search fontSize="small" />
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search products, categories, or brands"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            <button type="submit">Search</button>
+          </form>
+
+          <div className={`navbar-links ${isMenuOpen ? 'active' : ''}`}>
+            <div className="navbar-links-main">
+              <Link to="/">Home</Link>
+              <Link to="/products">Shop</Link>
+              {categories.map((category) => (
+                <Link
+                  key={category.label}
+                  to={`/products?category=${encodeURIComponent(category.label)}`}
+                >
+                  {category.label}
+                </Link>
+              ))}
+            </div>
+            <div className="navbar-links-mobile-actions">
+              <Link to="/cart">Cart</Link>
+              <Link to="/favorites">Wishlist</Link>
+              {isAuthenticated ? <Link to="/profile">My Account</Link> : <Link to="/login">Login</Link>}
             </div>
           </div>
-          <div className="cart-container">
-            <Link to="/cart">
-              <ShoppingCart className="icon" />
-              <span className="cart-badge">{cartItemsCount}</span>
+
+          <div className="navbar-actions">
+            <Link to="/favorites" className="navbar-icon-link" aria-label="Wishlist">
+              <FavoriteBorder fontSize="small" />
+              <span>{wishlist.length}</span>
             </Link>
-          </div>
-          {isAuthenticated && (
-            <>
-              <Link to="/favorites" className="wishlist-nav-link" aria-label="Favorite products">
-                <FavoriteBorder className="icon" />
-                <span className="wishlist-badge">{wishlist.length}</span>
+            <Link to="/cart" className="navbar-icon-link" aria-label="Cart">
+              <ShoppingCartOutlined fontSize="small" />
+              <span>{cartItemsCount}</span>
+            </Link>
+            {isAuthenticated ? (
+              <Link to="/profile" className="navbar-profile-link">
+                <PersonOutline fontSize="small" />
+                <span>{user?.name?.split(' ')[0] || 'Account'}</span>
               </Link>
-              <Link
-                to="/saved-products"
-                className="saved-nav-link"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <BookmarkBorder className="icon" />
-                <span>Saved</span>
-              </Link>
-            </>
-          )}
-          {isAuthenticated && user?.role === 'admin' && (
-            <Link to="/admin/dashboard" className="admin-dashboard-link">
-              Dashboard
-            </Link>
-          )}
-          {!isAuthenticated && (
-            <Link to="/signup" className="register-link">
-              <PersonAdd className="icon" />
-            </Link>
-          )}
-          <div className="navbar-hamburger" onClick={toggleMenu}>
-            {isMenuOpen ? (
-              <Close className="icon" />
             ) : (
-              <Menu className="icon" />
+              <Link to="/signup" className="navbar-profile-link">
+                <PersonAddAlt1Outlined fontSize="small" />
+                <span>Join</span>
+              </Link>
             )}
+            {isAuthenticated && user?.role === 'admin' && (
+              <Link to="/admin/dashboard" className="navbar-admin-link">
+                <DashboardCustomizeOutlined fontSize="small" />
+                <span>Admin</span>
+              </Link>
+            )}
+            <button
+              type="button"
+              className="navbar-hamburger"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              aria-label="Toggle navigation"
+            >
+              {isMenuOpen ? <Close className="icon" /> : <Menu className="icon" />}
+            </button>
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+
+      {categories.length > 0 && (
+        <div className="navbar-category-bar">
+          <div className="navbar-category-track">
+            {categories.map((category) => (
+              <Link
+                key={`bar-${category.label}`}
+                to={`/products?category=${encodeURIComponent(category.label)}`}
+                className="navbar-category-pill"
+              >
+                <span>{category.label}</span>
+                <small>{category.count}</small>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </header>
   );
 };
 

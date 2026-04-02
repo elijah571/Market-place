@@ -5,7 +5,8 @@ import Rating from './Rating';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleWishlist } from '../features/users/userSlice';
 import { toast } from 'react-toastify';
-import { Bookmark, BookmarkBorder, Favorite, FavoriteBorder } from '@mui/icons-material';
+import { Favorite, FavoriteBorder, VisibilityOutlined } from '@mui/icons-material';
+import { formatCompactNumber, formatCurrency } from '../utils/formatters';
 
 const Product = ({ product }) => {
   const dispatch = useDispatch();
@@ -28,52 +29,47 @@ const Product = ({ product }) => {
     dispatch(toggleWishlist(product._id));
   };
 
+  const productImage = product.image?.[0]?.url || '/images/banner1.jpeg';
+  const oldPrice = Number(product.price || 0) * 1.08;
+
   return (
     <Link to={`/product/${product._id}`} className="product_id">
       <div className="product-card">
         <div className="product-media">
           <img
-            src={product.image[0]?.url}
+            src={productImage}
             alt={product.name}
             className="product-image-card"
+            loading="lazy"
           />
+          <span className="product-badge">{product.category || 'Featured'}</span>
           <button
             type="button"
             className={`product-save-icon ${inWishlist ? 'active' : ''}`}
             onClick={handleWishlist}
             aria-label={inWishlist ? 'Remove product from saved items' : 'Save product'}
-            title={inWishlist ? 'Saved product' : 'Save product'}
           >
             {inWishlist ? <Favorite fontSize="small" /> : <FavoriteBorder fontSize="small" />}
           </button>
         </div>
         <div className="product-details">
-          <div className="product-top-row">
-            <h3 className="product-title">{product.name}</h3>
-            <button
-              type="button"
-              className={`product-bookmark-btn ${inWishlist ? 'active' : ''}`}
-              onClick={handleWishlist}
-              aria-label={inWishlist ? 'Remove bookmark' : 'Bookmark product'}
-              title={inWishlist ? 'Saved product' : 'Bookmark product'}
-            >
-              {inWishlist ? (
-                <Bookmark fontSize="small" />
-              ) : (
-                <BookmarkBorder fontSize="small" />
-              )}
-            </button>
-          </div>
-          <p className="home-price">
-            <strong>Price</strong>${product.price}
-          </p>
+          <p className="product-category-label">{product.subcategory || product.category}</p>
+          <h3 className="product-title">{product.name}</h3>
+          <p className="home-price">{formatCurrency(product.price)}</p>
+          <p className="product-old-price">{formatCurrency(oldPrice)}</p>
           <div className="rating_continers">
             <Rating value={product.rating || 0} disabled={true} />
+            <span className="product-review-count">
+              ({product.numOfReviews || 0} {product.numOfReviews === 1 ? 'review' : 'reviews'})
+            </span>
           </div>
-          <span className="productCardSpan">
-            ({product.numOfReviews}{' '}
-            {product.numOfReviews === 1 ? 'Review' : 'Reviews'})
-          </span>
+          <div className="product-meta-row">
+            <span>{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</span>
+            <span>
+              <VisibilityOutlined fontSize="inherit" />
+              {formatCompactNumber(product.viewCount || 0)}
+            </span>
+          </div>
           <div className="product-actions">
             <button className="add-to-cart">View Details</button>
             <span className={`product-save-state ${inWishlist ? 'active' : ''}`}>

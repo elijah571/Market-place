@@ -92,6 +92,11 @@ const productSchema = new mongoose.Schema(
       required: [true, 'Please Enter Product Name'],
       trim: true,
     },
+    subcategory: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     stock: {
       type: Number,
       required: [true, 'Please enter product stock'],
@@ -174,9 +179,9 @@ productSchema.pre('save', function () {
 });
 
 productVariantSchema.index({ color: 1, size: 1, sku: 1 });
-productSchema.index({ name: 'text', description: 'text', category: 1 });
-productSchema.index({ category: 1, createdAt: -1 });
-productSchema.index({ category: 1, rating: -1, price: 1, createdAt: -1 });
+productSchema.index({ name: 'text', description: 'text', category: 1, subcategory: 1 });
+productSchema.index({ category: 1, subcategory: 1, createdAt: -1 });
+productSchema.index({ category: 1, subcategory: 1, rating: -1, price: 1, createdAt: -1 });
 productSchema.index({ price: 1 });
 productSchema.index({ stock: 1, createdAt: -1 });
 productSchema.index({ viewCount: -1, createdAt: -1 });

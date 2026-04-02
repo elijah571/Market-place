@@ -1,11 +1,10 @@
 import React from 'react';
 import {
-  Phone,
+  HeadsetMicOutlined,
+  LocalShippingOutlined,
   Mail,
-  GitHub,
-  LinkedIn,
-  YouTube,
-  Instagram,
+  Phone,
+  SecurityOutlined,
 } from '@mui/icons-material';
 import '../componentStyles/Footer.css';
 
@@ -13,43 +12,50 @@ const Footer = () => {
   return (
     <footer className="footer">
       <div className="footer-container">
-        {/* Section 1*/}
-        <div className="footer-section contact">
-          <h3>Contact Us</h3>
+        <div className="footer-brand">
+          <p className="footer-kicker">Marketplace</p>
+          <h3>Commerce that feels fast, trusted, and easy to return to.</h3>
           <p>
-            <Phone fontSize="small" /> Phone: +234667889
+            Built for product discovery, checkout confidence, and smoother day-to-day store
+            operations.
+          </p>
+        </div>
+
+        <div className="footer-section">
+          <h4>Support</h4>
+          <p>
+            <Phone fontSize="small" /> +234 800 000 0000
           </p>
           <p>
             <Mail fontSize="small" />
-            Email: elijahfx43@gmail.com
+            support@marketplace.dev
           </p>
         </div>
-        {/* section 2 */}
-        <div className="footer-section social">
-          <h3>Follow me</h3>
-          <div className="social-links">
-            <a href="" target="_blank">
-              <GitHub className="social-icon" />
-            </a>
-            <LinkedIn className="social-icon" />
 
-            <YouTube className="social-icon" />
-
-            <Instagram className="social-icon" />
-          </div>
-        </div>
-        {/* Section 3 */}
-        <div className="footer-section about">
-          <h3>About</h3>
+        <div className="footer-section">
+          <h4>Why It Works</h4>
           <p>
-            Providing web development tutorials and courses to help you grow
-            your skills.
+            <LocalShippingOutlined fontSize="small" /> Flexible delivery options
           </p>
+          <p>
+            <SecurityOutlined fontSize="small" /> Secure checkout with leading gateways
+          </p>
+          <p>
+            <HeadsetMicOutlined fontSize="small" /> Responsive customer support
+          </p>
+        </div>
+
+        <div className="footer-section">
+          <h4>Explore</h4>
+          <a href="/products">All Products</a>
+          <a href="/favorites">Wishlist</a>
+          <a href="/orders/me">Order Tracking</a>
+          <a href="/admin/dashboard">Admin Analytics</a>
         </div>
       </div>
 
       <div className="footer-bottom">
-        <p>&copy; 2026 ElijhCoding. All rights Reversed</p>
+        <p>&copy; 2026 Marketplace. All rights reserved.</p>
       </div>
     </footer>
   );

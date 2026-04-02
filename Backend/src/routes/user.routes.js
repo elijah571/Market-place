@@ -4,6 +4,7 @@ import {
   deleteUserById,
   getAllUsers,
   getMyProfile,
+  getSessionStatus,
   getUserById,
   loginUser,
   logoutUser,
@@ -51,6 +52,7 @@ router.post('/login', validate(loginSchema), loginUser);
 router.post('/logout', logoutUser);
 //Refresh access token
 router.post('/refresh-token', refreshAuthToken);
+router.get('/session', getSessionStatus);
 //reset password token request
 router.post('/resetToken', validate(resetTokenRequestSchema), resetPasswordToken);
 //reset Password

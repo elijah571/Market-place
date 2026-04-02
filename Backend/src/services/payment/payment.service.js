@@ -23,9 +23,9 @@ const getProvider = (gateway) => {
 export const paymentService = {
   getSupportedGateways: () => Object.keys(providers),
 
-  async initialize({ gateway, payload }) {
+  async initialize({ gateway, payload, idempotencyKey }) {
     const provider = getProvider(gateway);
-    return provider.initialize(payload);
+    return provider.initialize(payload, { idempotencyKey });
   },
 
   async verify({ gateway, reference }) {

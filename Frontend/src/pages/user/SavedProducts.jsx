@@ -4,11 +4,11 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageTitle from '../../components/PageTitle';
 import Product from '../../components/Product';
-import Loader from '../../components/Loader';
 import NoProduct from '../../components/NoProduct';
 import { getWishlist, removeErrors } from '../../features/users/userSlice';
 import { toast } from 'react-toastify';
 import '../../pageStyles/SavedProducts.css';
+import ProductSkeletonGrid from '../../components/ProductSkeletonGrid';
 
 const SavedProducts = ({ title = 'Saved Products', heading = 'Saved Products' }) => {
   const dispatch = useDispatch();
@@ -40,7 +40,7 @@ const SavedProducts = ({ title = 'Saved Products', heading = 'Saved Products' })
           </div>
 
           {loading ? (
-            <Loader />
+            <ProductSkeletonGrid count={6} />
           ) : wishlistProducts.length > 0 ? (
             <div className="saved-products-grid">
               {wishlistProducts.map((product) => (

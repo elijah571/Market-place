@@ -5,8 +5,8 @@ const shippingSchema = z.object({
   state: z.string().min(1),
   city: z.string().min(1),
   address: z.string().min(1),
-  pinCode: z.preprocess((v) => Number(v), z.number().min(1)),
-  phoneNo: z.preprocess((v) => Number(v), z.number().min(1)),
+  pinCode: z.union([z.string().min(1), z.number().min(1)]),
+  phoneNo: z.union([z.string().min(1), z.number().min(1)]),
 });
 
 const orderItemSchema = z.object({
@@ -32,9 +32,11 @@ export const createOrderSchema = z.object({
   itemPrice: z.preprocess((v) => Number(v), z.number().min(0)),
   taxPrice: z.preprocess((v) => Number(v), z.number().min(0)),
   shippingPrice: z.preprocess((v) => Number(v), z.number().min(0)),
+  discountPrice: z.preprocess((v) => Number(v), z.number().min(0)).optional(),
+  promoCode: z.string().trim().optional(),
   totalPrice: z.preprocess((v) => Number(v), z.number().min(0)),
 });
 
 export const updateOrderStatusSchema = z.object({
-  status: z.enum(['Processing', 'Delivered']),
+  status: z.enum(['Processing', 'Shipped', 'Delivered', 'Cancelled']),
 });

@@ -61,7 +61,8 @@ export const paystackProvider = {
       amount: Number(tx.amount || 0) / 100,
       currency: tx.currency?.toUpperCase() || 'USD',
       raw: data,
-      orderId: tx.metadata?.orderId,
+      cartId: tx.metadata?.cartId || '',
+      userId: tx.metadata?.userId || '',
     };
   },
 
@@ -92,7 +93,8 @@ export const paystackProvider = {
       amount: Number(event.data.amount || 0) / 100,
       currency: event.data.currency?.toUpperCase() || 'USD',
       raw: event,
-      orderId: event.data.metadata?.orderId,
+      cartId: event.data.metadata?.cartId || '',
+      userId: event.data.metadata?.userId || '',
     };
   },
 };

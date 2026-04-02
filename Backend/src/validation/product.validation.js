@@ -38,6 +38,7 @@ const baseProductSchema = {
   description: z.string().min(4, 'Description is required'),
   price: z.preprocess((val) => Number(val), z.number().positive()),
   category: z.string().min(2, 'Category is required'),
+  subcategory: z.string().trim().optional(),
   stock: z.preprocess((val) => Number(val), z.number().min(0)).optional(),
   variants: z
     .preprocess((val) => {
@@ -61,4 +62,10 @@ export const updateProductSchema = z.object({
   ...Object.fromEntries(
     Object.entries(baseProductSchema).map(([k, v]) => [k, v.optional()])
   ),
+});
+
+export const createReviewSchema = z.object({
+  rating: z.preprocess((val) => Number(val), z.number().min(1).max(5)),
+  comment: z.string().trim().min(3, 'Review comment must be at least 3 characters'),
+  productId: z.string().min(1, 'productId is required'),
 });

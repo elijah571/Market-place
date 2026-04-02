@@ -3,8 +3,12 @@ import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
-import apiClient from '../../utils/apiClient';
 import '../../OrderStyles/OrderDetails.css';
+import Footer from '../../components/Footer';
+import { accountService } from '../../services/account.service';
+import { formatCurrency, formatDate, sentenceCase } from '../../utils/formatters';
+
+const orderStatuses = ['PendingPayment', 'Processing', 'Shipped', 'Delivered'];
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -14,8 +18,8 @@ const OrderDetails = () => {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const { data } = await apiClient.get(`/order/${id}`);
-        setOrder(data?.order || null);
+        const data = await accountService.getOrderDetails(id);
+        setOrder(data?.data || null);
       } catch (error) {
         toast.error(error.response?.data?.message || 'Unable to load order');
       } finally {
@@ -44,11 +48,23 @@ const OrderDetails = () => {
     );
   }
 
+  const currentStatusIndex = orderStatuses.indexOf(order.orderStatus);
+
   return (
     <>
       <PageTitle title={`Order ${order._id.slice(-6)}`} />
       <Navbar />
       <div className="order-box">
+        <div className="order-tracker">
+          {orderStatuses.map((status, index) => (
+            <div
+              key={status}
+              className={`order-tracker-step ${currentStatusIndex >= index ? 'active' : ''}`}
+            >
+              <span>{status}</span>
+            </div>
+          ))}
+        </div>
         <div className="table-block">
           <h2 className="table-title">Order Summary</h2>
           <table className="table-main">
@@ -65,7 +81,7 @@ const OrderDetails = () => {
                 <td className="table-cell">#{order._id.slice(-8)}</td>
                 <td className="table-cell">
                   <span className={`status-tag ${order.orderStatus.toLowerCase()}`}>
-                    {order.orderStatus}
+                    {sentenceCase(order.orderStatus)}
                   </span>
                 </td>
                 <td className="table-cell">
@@ -76,10 +92,10 @@ const OrderDetails = () => {
                         : 'not-paid'
                     }`}
                   >
-                    {order.paymentInfo?.status || 'Pending'}
+                    {sentenceCase(order.paymentInfo?.status || 'Pending')}
                   </span>
                 </td>
-                <td className="table-cell">${order.totalPrice}</td>
+                <td className="table-cell">{formatCurrency(order.totalPrice)}</td>
               </tr>
             </tbody>
           </table>
@@ -104,13 +120,52 @@ const OrderDetails = () => {
                   </td>
                   <td className="table-cell">{item.name}</td>
                   <td className="table-cell">{item.quantity}</td>
-                  <td className="table-cell">${item.price}</td>
+                  <td className="table-cell">{formatCurrency(item.price)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        <div className="table-block">
+          <h2 className="table-title">Shipping Details</h2>
+          <p>
+            {order.shippingInfo.address}, {order.shippingInfo.city}, {order.shippingInfo.state},{' '}
+            {order.shippingInfo.country}
+          </p>
+          <p>
+            Order created on {formatDate(order.createdAt)}
+            {order.deliveredAt ? ` and delivered on ${formatDate(order.deliveredAt)}` : ''}
+          </p>
+          {order.promoCode ? <p>Promo applied: {order.promoCode}</p> : null}
+        </div>
+        {(order.statusTimeline || []).length > 0 ? (
+          <div className="table-block">
+            <h2 className="table-title">Timeline</h2>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {order.statusTimeline.map((entry, index) => (
+                <div
+                  key={`${entry.type}-${entry.status}-${entry.createdAt || index}`}
+                  style={{
+                    display: 'grid',
+                    gap: '0.15rem',
+                    padding: '0.85rem 1rem',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    borderRadius: '14px',
+                  }}
+                >
+                  <strong>
+                    {sentenceCase(entry.type)}: {sentenceCase(entry.status)}
+                  </strong>
+                  <span>{entry.note || 'Status updated'}</span>
+                  <small>{formatDate(entry.createdAt)}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
+      <Footer />
     </>
   );
 };

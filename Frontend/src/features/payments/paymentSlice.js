@@ -34,11 +34,15 @@ const paymentSlice = createSlice({
     error: null,
     transaction: null,
     paymentData: null,
+    order: null,
   },
   reducers: {
     clearPaymentState: (state) => {
       state.error = null;
       state.loading = false;
+      state.transaction = null;
+      state.paymentData = null;
+      state.order = null;
     },
   },
   extraReducers: (builder) => {
@@ -63,6 +67,7 @@ const paymentSlice = createSlice({
       .addCase(verifyPayment.fulfilled, (state, action) => {
         state.loading = false;
         state.transaction = action.payload.data || null;
+        state.order = action.payload.data?.order || null;
       })
       .addCase(verifyPayment.rejected, (state, action) => {
         state.loading = false;

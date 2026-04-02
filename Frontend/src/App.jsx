@@ -3,6 +3,11 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import Loader from './components/Loader';
 import {
+  fetchCart,
+  hydrateCartFromStorage,
+  mergeGuestCart,
+} from './features/cart/cartSlice';
+import {
   loadCurrentUser,
   getWishlist,
   getRecentlyViewed,
@@ -53,9 +58,32 @@ const App = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
+      dispatch(mergeGuestCart());
       dispatch(getWishlist());
       dispatch(getRecentlyViewed());
+      return;
     }
+
+    dispatch(hydrateCartFromStorage());
+  }, [dispatch, isAuthenticated]);
+
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (
+        ['cartItems', 'shippingInfo', 'promoInfo', 'cartOwner'].includes(
+          event.key || ''
+        )
+      ) {
+        dispatch(hydrateCartFromStorage());
+
+        if (isAuthenticated) {
+          dispatch(fetchCart());
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, [dispatch, isAuthenticated]);
 
   return (

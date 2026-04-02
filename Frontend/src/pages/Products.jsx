@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../pageStyles/Products.css';
 import PageTitle from '../components/PageTitle';
 import Navbar from '../components/Navbar';
@@ -7,18 +7,25 @@ import { useDispatch, useSelector } from 'react-redux';
 import Product from '../components/Product';
 import { getProduct, removeErrors } from '../features/products/productSlice';
 import { toast } from 'react-toastify';
-import Loader from '../components/Loader';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NoProduct from '../components/NoProduct';
 import Pagination from '../components/Pagination';
 import FiltersPanel from '../components/FiltersPanel';
+import ProductSkeletonGrid from '../components/ProductSkeletonGrid';
+import { storefrontService } from '../services/storefront.service';
 
 const Products = () => {
-  const { loading, error, products } = useSelector((state) => state.product);
+  const { loading, error, products, productCount, totalPage } = useSelector(
+    (state) => state.product
+  );
 
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
+  const [catalogMeta, setCatalogMeta] = useState({
+    categories: [],
+    priceRange: { min: 0, max: 5000 },
+  });
 
   const searchParams = new URLSearchParams(location.search);
   const keyword = searchParams.get('keyword');
@@ -39,16 +46,6 @@ const Products = () => {
   const minimumRating = ratingGteFromURL;
   const sortBy = sortFromURL;
 
-  const categories = [
-    'Computers',
-    'Mobiles',
-    'Accessories',
-    'Clothes',
-    'Shoes',
-    'TVs ',
-    'Cameras',
-  ];
-
   useEffect(() => {
     dispatch(
       getProduct({
@@ -63,15 +60,20 @@ const Products = () => {
   }, [dispatch, keyword, currentPage, category, maxPrice, minimumRating, sortBy]);
 
   useEffect(() => {
+    storefrontService
+      .getProductMeta()
+      .then((data) =>
+        setCatalogMeta(data || { categories: [], priceRange: { min: 0, max: 5000 } })
+      )
+      .catch(() => null);
+  }, []);
+
+  useEffect(() => {
     if (error) {
       toast.error(error?.message || error);
       dispatch(removeErrors());
     }
   }, [dispatch, error]);
-
-  if (loading) {
-    return <Loader />;
-  }
 
   const handlePageChange = (page) => {
     if (page !== currentPage) {
@@ -95,14 +97,13 @@ const Products = () => {
     } else {
       newSearchParams.set('category', selectedCategory);
     }
-    newSearchParams.delete('page'); // reset pagination when category changes
+    newSearchParams.delete('page');
 
     navigate(`?${newSearchParams.toString()}`);
   };
 
   const handlePrice = (value) => {
     const numeric = Number(value);
-
     const newSearchParams = new URLSearchParams(location.search);
     if (Number.isFinite(numeric)) {
       newSearchParams.set('price[lte]', String(numeric));
@@ -115,7 +116,6 @@ const Products = () => {
 
   const handleRating = (value) => {
     const numeric = Number(value);
-
     const newSearchParams = new URLSearchParams(location.search);
     if (Number.isFinite(numeric) && numeric > 0) {
       newSearchParams.set('rating[gte]', String(numeric));
@@ -143,19 +143,37 @@ const Products = () => {
       <Navbar />
       <div className="products-layout">
         <FiltersPanel
-          categories={categories}
+          categories={catalogMeta.categories}
           selectedCategory={category || ''}
           onCategoryChange={handleCategory}
-          selectedPrice={maxPrice}
+          maxPrice={catalogMeta.priceRange?.max || 5000}
+          selectedPrice={maxPrice ?? catalogMeta.priceRange?.max}
           onPriceChange={handlePrice}
           selectedRating={minimumRating}
           onRatingChange={handleRating}
           selectedSort={sortBy}
           onSortChange={handleSort}
+          onClear={() => navigate('/products')}
         />
 
         <div className="products-section">
-          {products.length > 0 ? (
+          <div className="products-page-header">
+            <div>
+              <p className="products-kicker">Catalog</p>
+              <h1>{keyword ? `Results for "${keyword}"` : 'Shop all products'}</h1>
+              <p className="products-subtitle">
+                {productCount} products found across curated departments and fast-moving categories.
+              </p>
+            </div>
+            <div className="products-summary-card">
+              <strong>{totalPage || 1}</strong>
+              <span>pages of results</span>
+            </div>
+          </div>
+
+          {loading ? (
+            <ProductSkeletonGrid count={8} />
+          ) : products.length > 0 ? (
             <div className="products-product-container">
               {products.map((product) => (
                 <Product key={product._id} product={product} />
@@ -165,10 +183,7 @@ const Products = () => {
             <NoProduct />
           )}
 
-          <Pagination
-            currentPage={currentPage}
-            onPageChange={handlePageChange}
-          />
+          <Pagination currentPage={currentPage} onPageChange={handlePageChange} />
         </div>
       </div>
       <Footer />

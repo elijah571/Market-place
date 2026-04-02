@@ -1,79 +1,79 @@
 .filter-section {
-    padding: 20px;
-    border-radius: 8px;
-    color: var(--bg-secondary);
-    margin-top:120px;
-  }
-  
-  .filter {
-    margin-bottom: 15px;
- 
+  background: white;
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  align-self: start;
+  position: sticky;
+  top: 9.5rem;
 }
-  .filter-heading{
-    text-align: center;
-    font-size: 25px;
-    color: var(--bg-secondary);
-  }
-  
-  .filter h4 {
-    font-size: 16px;
-    margin-bottom: 8px;
-    color: var(--bg-secondary);
-  }
-  
-  .filter select,
-  .filter input[type="range"] {
-    width: 100%;
-    padding: 5px;
-    margin: 5px 0;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    background-color: var(--bg-secondary);
-    color: var(--text-light);
-  }
-  
-  .filter input[type="range"] {
-    -webkit-appearance: none;
-    appearance: none;
-    height: 2px;
-    background: #ddd;
-    border-radius: 5px; 
-    width: 100%;
-  }
-  
-  .filter input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    background: var(--primary-main);
-    border-radius: 50%;
-  }
-  
-  .filter input[type="range"]::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    background: var(--primary-main);
-    border-radius: 50%;
-  }
 
-  
-  .filters-container {
-    flex: 1 0 25%; 
-    max-width: 300px; 
-  }
-  
-  
-  
+.filter-head,
+.filter,
+.filter-chip-grid {
+  display: grid;
+  gap: 0.85rem;
+}
 
-  @media (max-width: 768px) {
+.filter-head {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
 
-    .filter-section {
-      margin-top:50px;
-    }
-    .filters-container,
-    .product-section {
-      flex: 1 0 100%; 
-      max-width: 100%; 
-    }
+.filter-heading {
+  font-size: 1.1rem;
+}
+
+.filter-clear-btn {
+  border: none;
+  background: transparent;
+  color: var(--primary-main);
+  font-weight: 700;
+}
+
+.filter + .filter {
+  margin-top: 1.4rem;
+}
+
+.filter select,
+.filter input[type='range'] {
+  width: 100%;
+}
+
+.filter select {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: var(--bg-muted);
+}
+
+.filter-chip-grid {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
+.filter-chip {
+  border: 1px solid var(--border-color);
+  background: white;
+  border-radius: 999px;
+  padding: 0.75rem 0.9rem;
+  display: inline-flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.filter-chip.active {
+  background: rgba(246, 139, 30, 0.12);
+  border-color: rgba(246, 139, 30, 0.35);
+  color: var(--primary-dark);
+}
+
+.filter-chip small {
+  color: var(--text-soft);
+}
+
+@media (max-width: 900px) {
+  .filter-section {
+    position: static;
   }
+}

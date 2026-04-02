@@ -14,7 +14,7 @@ const AdminOrders = () => {
     setLoading(true);
     try {
       const { data } = await apiClient.get('/admin/order?limit=100&page=1');
-      setOrders(data?.orders || []);
+      setOrders(data?.data || []);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch orders');
     } finally {

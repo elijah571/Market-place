@@ -11,9 +11,11 @@ import {
 } from '../utils/cloudinary.js';
 import {
   clearAuthCookies,
+  getAccessTokenFromRequest,
   getRefreshTokenFromRequest,
   hashToken,
   issueAuthTokens,
+  verifyAccessToken,
   verifyRefreshToken,
 } from '../utils/token.js';
 
@@ -99,12 +101,13 @@ export const signUp = asyncHandler(async (req, res) => {
 
   await sendVerificationEmail(normalizedEmail, verificationToken);
 
-  await issueAuthTokens(res, user);
+  const { accessToken } = await issueAuthTokens(res, user);
 
   res.status(201).json({
     status: 'success',
     message: 'User created successfully. Check your email for verification.',
     user,
+    accessToken,
   });
 });
 /* ===============================
@@ -164,7 +167,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new AppError('Verify your account before login', 403);
   }
 
-  await issueAuthTokens(res, user);
+  const { accessToken } = await issueAuthTokens(res, user);
 
   user.password = undefined;
 
@@ -172,6 +175,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     status: 'success',
     message: 'Login successful',
     user,
+    accessToken,
   });
 });
 
@@ -244,12 +248,69 @@ export const refreshAuthToken = asyncHandler(async (req, res) => {
     throw new AppError('Refresh token expired or revoked', 401);
   }
 
-  await issueAuthTokens(res, user);
+  const { accessToken } = await issueAuthTokens(res, user);
 
   res.status(200).json({
     status: 'success',
     message: 'Session refreshed successfully',
+    accessToken,
   });
+});
+
+/* ===============================
+   SESSION STATUS
+================================= */
+export const getSessionStatus = asyncHandler(async (req, res) => {
+  const accessToken = getAccessTokenFromRequest(req);
+
+  if (!accessToken) {
+    return res.status(200).json({
+      status: 'success',
+      authenticated: false,
+      user: null,
+    });
+  }
+
+  try {
+    const decoded = verifyAccessToken(accessToken);
+
+    if (decoded.type !== 'access') {
+      clearAuthCookies(res);
+      return res.status(200).json({
+        status: 'success',
+        authenticated: false,
+        user: null,
+      });
+    }
+
+    const user = await User.findById(decoded.userId)
+      .select('-password +tokenVersion')
+      .lean();
+
+    if (!user || decoded.tokenVersion !== user.tokenVersion) {
+      clearAuthCookies(res);
+      return res.status(200).json({
+        status: 'success',
+        authenticated: false,
+        user: null,
+      });
+    }
+
+    delete user.tokenVersion;
+
+    return res.status(200).json({
+      status: 'success',
+      authenticated: true,
+      user,
+    });
+  } catch {
+    clearAuthCookies(res);
+    return res.status(200).json({
+      status: 'success',
+      authenticated: false,
+      user: null,
+    });
+  }
 });
 
 /* ======/* ===============================
@@ -605,13 +666,18 @@ export const toggleWishlist = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (!user) throw new AppError('User not found', 404);
 
+  const cleanedWishlist = Array.isArray(user.wishlist)
+    ? user.wishlist.filter(Boolean)
+    : [];
+  user.wishlist = cleanedWishlist;
+
   const exists = user.wishlist.find(
-    (id) => id.toString() === String(productId)
+    (id) => String(id) === String(productId)
   );
 
   if (exists) {
     user.wishlist = user.wishlist.filter(
-      (id) => id.toString() !== String(productId)
+      (id) => String(id) !== String(productId)
     );
   } else {
     user.wishlist.push(productId);
@@ -619,21 +685,25 @@ export const toggleWishlist = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
+  const updatedUser = await User.findById(req.user._id)
+    .populate('wishlist', 'name price image rating category')
+    .lean();
+
   res.status(200).json({
     status: 'success',
     message: exists ? 'Removed from wishlist' : 'Added to wishlist',
-    wishlist: user.wishlist,
+    wishlist: (updatedUser?.wishlist || []).filter(Boolean),
   });
 });
 
 export const getWishlist = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id)
-    .populate('wishlist', 'name price image rating')
+    .populate('wishlist', 'name price image rating category')
     .lean();
   if (!user) throw new AppError('User not found', 404);
   res.status(200).json({
     status: 'success',
-    wishlist: user.wishlist || [],
+    wishlist: (user.wishlist || []).filter(Boolean),
   });
 });
 

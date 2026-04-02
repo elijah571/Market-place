@@ -1,21 +1,31 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import apiClient from '../../utils/apiClient';
 import Navbar from '../../components/Navbar';
 import PageTitle from '../../components/PageTitle';
 import '../../AdminStyles/Dashboard.css';
+import { adminService } from '../../services/admin.service';
+import { formatCurrency } from '../../utils/formatters';
 
 const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
-    users: 0,
-    products: 0,
-    orders: 0,
-    revenue: 0,
-    recentUsers: [],
-    recentOrders: [],
-    recentProducts: [],
+    overview: {},
+    breakdowns: {
+      orderStatus: [],
+      paymentStatus: [],
+      categories: [],
+    },
+    charts: {
+      salesTrend: [],
+    },
+    spotlight: {
+      recentUsers: [],
+      recentOrders: [],
+      recentProducts: [],
+      topViewedProducts: [],
+      topSellingProducts: [],
+    },
   });
 
   useEffect(() => {
@@ -23,25 +33,8 @@ const AdminDashboard = () => {
       setLoading(true);
 
       try {
-        const [usersRes, productsRes, ordersRes] = await Promise.all([
-          apiClient.get('/users'),
-          apiClient.get('/admin/products?limit=5&page=1'),
-          apiClient.get('/admin/order?limit=5&page=1'),
-        ]);
-
-        const users = usersRes.data?.users || [];
-        const products = productsRes.data?.data || [];
-        const orders = ordersRes.data?.orders || [];
-
-        setDashboardData({
-          users: usersRes.data?.results || users.length,
-          products: productsRes.data?.productCount || products.length,
-          orders: ordersRes.data?.totalOrders || orders.length,
-          revenue: ordersRes.data?.totalAmount || 0,
-          recentUsers: users.slice(0, 5),
-          recentOrders: orders.slice(0, 5),
-          recentProducts: products.slice(0, 5),
-        });
+        const data = await adminService.getDashboard();
+        setDashboardData(data);
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to load admin dashboard');
       } finally {
@@ -54,10 +47,21 @@ const AdminDashboard = () => {
 
   const stats = useMemo(
     () => [
-      { label: 'Total Users', value: dashboardData.users },
-      { label: 'Total Products', value: dashboardData.products },
-      { label: 'Total Orders', value: dashboardData.orders },
-      { label: 'Revenue', value: `$${Number(dashboardData.revenue).toFixed(2)}` },
+      { label: 'Total Users', value: dashboardData.overview?.users || 0 },
+      { label: 'Total Products', value: dashboardData.overview?.products || 0 },
+      { label: 'Total Orders', value: dashboardData.overview?.orders || 0 },
+      {
+        label: 'Revenue',
+        value: formatCurrency(dashboardData.overview?.totalRevenue || 0),
+      },
+      {
+        label: 'Low Stock',
+        value: dashboardData.overview?.lowStockProducts || 0,
+      },
+      {
+        label: 'Average Order',
+        value: formatCurrency(dashboardData.overview?.averageOrderValue || 0),
+      },
     ],
     [dashboardData]
   );
@@ -67,38 +71,24 @@ const AdminDashboard = () => {
       <PageTitle title="Admin Dashboard" />
       <Navbar />
       <div className="dashboard-container">
-        <aside className="sidebar">
-          <div className="logo">
-            <span className="logo-icon">MP</span>
-            <span>Admin Panel</span>
-          </div>
-          <div className="nav-menu">
-            <div className="nav-section">
-              <h3>Overview</h3>
-              <Link to="/admin/dashboard" className="admin-link">
-                Dashboard
-              </Link>
+        <main className="main-content">
+          <div className="dashboard-hero">
+            <div>
+              <p className="dashboard-kicker">Admin analytics</p>
+              <h1 className="page-title">Store performance at a glance</h1>
             </div>
-            <div className="nav-section">
-              <h3>Management</h3>
-              <Link to="/admin/users" className="admin-link">
-                Users
-              </Link>
+            <div className="dashboard-links">
               <Link to="/admin/products" className="admin-link">
                 Products
               </Link>
               <Link to="/admin/orders" className="admin-link">
                 Orders
               </Link>
-              <Link to="/admin/reviews" className="admin-link">
-                Reviews
+              <Link to="/admin/users" className="admin-link">
+                Users
               </Link>
             </div>
           </div>
-        </aside>
-
-        <main className="main-content">
-          <h1 className="page-title">Dashboard</h1>
 
           {loading ? (
             <p className="loading-message">Loading dashboard...</p>
@@ -113,49 +103,69 @@ const AdminDashboard = () => {
                 ))}
               </section>
 
-              <section id="users" className="social-box" style={{ marginBottom: '20px' }}>
-                <h3>Recent Users</h3>
-                {dashboardData.recentUsers.length === 0 ? (
-                  <p>No users found</p>
-                ) : (
-                  dashboardData.recentUsers.map((user) => (
+              <section className="dashboard-grid">
+                <article className="social-box">
+                  <h3>Order Status Breakdown</h3>
+                  {(dashboardData.breakdowns?.orderStatus || []).map((item) => (
+                    <div key={item.label} className="dashboard-inline-stat">
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                  ))}
+                </article>
+
+                <article className="social-box">
+                  <h3>Category Performance</h3>
+                  {(dashboardData.breakdowns?.categories || []).slice(0, 5).map((item) => (
+                    <div key={item.label} className="dashboard-bar-row">
+                      <span>{item.label}</span>
+                      <div>
+                        <i style={{ width: `${Math.min(item.value * 18, 100)}%` }} />
+                      </div>
+                      <strong>{item.value}</strong>
+                    </div>
+                  ))}
+                </article>
+              </section>
+
+              <section className="dashboard-grid">
+                <article className="social-box">
+                  <h3>Recent Users</h3>
+                  {(dashboardData.spotlight?.recentUsers || []).map((user) => (
                     <p key={user._id}>
                       {user.name} ({user.email}) - {user.role}
                     </p>
-                  ))
-                )}
-              </section>
+                  ))}
+                </article>
 
-              <section id="products" className="social-box" style={{ marginBottom: '20px' }}>
-                <h3>Recent Products</h3>
-                {dashboardData.recentProducts.length === 0 ? (
-                  <p>No products found</p>
-                ) : (
-                  dashboardData.recentProducts.map((product) => (
-                    <p key={product._id}>
-                      {product.name} - ${product.price}
-                    </p>
-                  ))
-                )}
-                <Link to="/admin/products" className="admin-link" style={{ marginTop: '12px' }}>
-                  Manage Products
-                </Link>
-              </section>
-
-              <section id="orders" className="social-box">
-                <h3>Recent Orders</h3>
-                {dashboardData.recentOrders.length === 0 ? (
-                  <p>No orders found</p>
-                ) : (
-                  dashboardData.recentOrders.map((order) => (
+                <article className="social-box">
+                  <h3>Recent Orders</h3>
+                  {(dashboardData.spotlight?.recentOrders || []).map((order) => (
                     <p key={order._id}>
-                      #{order._id.slice(-6)} - {order.orderStatus} - ${order.totalPrice}
+                      #{order._id.slice(-6)} - {order.orderStatus} - {formatCurrency(order.totalPrice)}
                     </p>
-                  ))
-                )}
-                <Link to="/admin/orders" className="admin-link" style={{ marginTop: '12px' }}>
-                  Manage Orders
-                </Link>
+                  ))}
+                </article>
+              </section>
+
+              <section className="dashboard-grid">
+                <article className="social-box">
+                  <h3>Top Viewed Products</h3>
+                  {(dashboardData.spotlight?.topViewedProducts || []).map((product) => (
+                    <p key={product._id}>
+                      {product.name} - {product.viewCount || 0} views
+                    </p>
+                  ))}
+                </article>
+
+                <article className="social-box">
+                  <h3>Top Selling Products</h3>
+                  {(dashboardData.spotlight?.topSellingProducts || []).map((product) => (
+                    <p key={product._id || product.productName}>
+                      {product.productName} - {product.unitsSold} units
+                    </p>
+                  ))}
+                </article>
               </section>
             </>
           )}

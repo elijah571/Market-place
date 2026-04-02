@@ -74,7 +74,8 @@ export const flutterwaveProvider = {
       amount: Number(tx.amount || 0),
       currency: tx.currency?.toUpperCase() || 'USD',
       raw: data,
-      orderId: tx.meta?.orderId,
+      cartId: tx.meta?.cartId || '',
+      userId: tx.meta?.userId || '',
     };
   },
 
@@ -101,7 +102,8 @@ export const flutterwaveProvider = {
       amount: Number(event.data.amount || 0),
       currency: event.data.currency?.toUpperCase() || 'USD',
       raw: event,
-      orderId: event.data.meta?.orderId,
+      cartId: event.data.meta?.cartId || '',
+      userId: event.data.meta?.userId || '',
     };
   },
 };

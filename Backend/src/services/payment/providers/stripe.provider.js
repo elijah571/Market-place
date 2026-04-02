@@ -2,7 +2,9 @@ import Stripe from 'stripe';
 import { AppError } from '../../../utils/AppError.js';
 
 const stripeClient = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2026-02-25.clover',
+    })
   : null;
 
 const toSmallestUnit = (amount, currency = 'USD') => {
@@ -14,20 +16,39 @@ const toSmallestUnit = (amount, currency = 'USD') => {
   return Math.round(amount * 100);
 };
 
+const mapStripeStatus = (status) => {
+  if (status === 'succeeded') return 'successful';
+  if (['processing', 'requires_capture'].includes(status)) return 'pending';
+  if (['canceled', 'requires_payment_method'].includes(status)) return 'failed';
+  return 'pending';
+};
+
+const fromSmallestUnit = (amount, currency = 'USD') => {
+  const zeroDecimalCurrencies = new Set(['JPY', 'KRW']);
+  if (zeroDecimalCurrencies.has(currency.toUpperCase())) {
+    return Number(amount || 0);
+  }
+
+  return Number(amount || 0) / 100;
+};
+
 export const stripeProvider = {
   gateway: 'stripe',
 
-  async initialize({ amount, currency, metadata = {} }) {
+  async initialize({ amount, currency, metadata = {} }, { idempotencyKey } = {}) {
     if (!stripeClient) {
       throw new AppError('Stripe is not configured', 500);
     }
 
-    const intent = await stripeClient.paymentIntents.create({
-      amount: toSmallestUnit(amount, currency),
-      currency: currency.toLowerCase(),
-      metadata,
-      automatic_payment_methods: { enabled: true },
-    });
+    const intent = await stripeClient.paymentIntents.create(
+      {
+        amount: toSmallestUnit(amount, currency),
+        currency: currency.toLowerCase(),
+        metadata,
+        automatic_payment_methods: { enabled: true },
+      },
+      idempotencyKey ? { idempotencyKey } : undefined
+    );
 
     return {
       reference: intent.id,
@@ -46,14 +67,14 @@ export const stripeProvider = {
 
     const intent = await stripeClient.paymentIntents.retrieve(reference);
 
-    const successful = intent.status === 'succeeded';
-
     return {
       reference: intent.id,
-      status: successful ? 'successful' : 'failed',
-      amount: intent.amount_received ? intent.amount_received / 100 : 0,
+      status: mapStripeStatus(intent.status),
+      amount: fromSmallestUnit(intent.amount, intent.currency),
       currency: intent.currency?.toUpperCase() || 'USD',
       raw: intent,
+      cartId: intent.metadata?.cartId || '',
+      userId: intent.metadata?.userId || '',
     };
   },
 
@@ -72,19 +93,42 @@ export const stripeProvider = {
       process.env.STRIPE_WEBHOOK_SECRET
     );
 
-    if (event.type !== 'payment_intent.succeeded') {
+    if (
+      ![
+        'payment_intent.succeeded',
+        'payment_intent.payment_failed',
+        'payment_intent.canceled',
+        'charge.refunded',
+      ].includes(event.type)
+    ) {
       return null;
     }
 
-    const intent = event.data.object;
+    const resource = event.data.object;
+    const intent =
+      event.type === 'charge.refunded'
+        ? resource.payment_intent
+          ? await stripeClient.paymentIntents.retrieve(resource.payment_intent)
+          : null
+        : resource;
+
+    if (!intent?.id) {
+      return null;
+    }
 
     return {
       reference: intent.id,
-      status: 'successful',
-      amount: intent.amount_received ? intent.amount_received / 100 : 0,
+      status:
+        event.type === 'payment_intent.succeeded'
+          ? 'successful'
+          : event.type === 'charge.refunded'
+            ? 'refunded'
+            : 'failed',
+      amount: fromSmallestUnit(intent.amount, intent.currency),
       currency: intent.currency?.toUpperCase() || 'USD',
       raw: event,
-      orderId: intent.metadata?.orderId,
+      cartId: intent.metadata?.cartId || '',
+      userId: intent.metadata?.userId || '',
     };
   },
 };

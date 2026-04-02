@@ -1,5 +1,35 @@
 import mongoose from 'mongoose';
 
+const orderTimelineSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['order', 'payment'],
+      required: true,
+    },
+    status: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    note: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    actor: {
+      type: String,
+      trim: true,
+      default: 'system',
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     shippingInfo: {
@@ -76,17 +106,42 @@ const orderSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    cart: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Cart',
+      default: null,
+    },
     orderStatus: {
       type: String,
       required: true,
-      default: "Processing"
+      enum: ['PendingPayment', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
+      default: 'PendingPayment',
     },
     paymentInfo: {
       id: {
         type: String,
       },
+      gateway: {
+        type: String,
+        default: '',
+      },
       status: {
         type: String,
+        default: 'Pending',
+      },
+      providerStatus: {
+        type: String,
+        default: '',
+      },
+      currency: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        default: 'USD',
+      },
+      amountPaid: {
+        type: Number,
+        default: 0,
       },
     },
 
@@ -111,6 +166,17 @@ const orderSchema = new mongoose.Schema(
       required: true,
       default: 0,
     },
+    discountPrice: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    promoCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: '',
+    },
 
     totalPrice: {
       type: Number,
@@ -121,11 +187,18 @@ const orderSchema = new mongoose.Schema(
     deliveredAt: {
       type: Date,
     },
+    statusTimeline: {
+      type: [orderTimelineSchema],
+      default: [],
+    },
   },
   { timestamps: true }
 );
 
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ orderStatus: 1, createdAt: -1 });
+orderSchema.index({ cart: 1 }, { unique: true, sparse: true });
+orderSchema.index({ 'paymentInfo.id': 1 });
+orderSchema.index({ 'paymentInfo.status': 1, createdAt: -1 });
 
 export const Order = mongoose.model('Order', orderSchema);

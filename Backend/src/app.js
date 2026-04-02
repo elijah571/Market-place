@@ -10,12 +10,20 @@ import crypto from 'node:crypto';
 import productRoutes from './routes/product.route.js';
 import userRoutes from './routes/user.routes.js';
 import orderRoutes from './routes/order.routes.js';
+import cartRoutes from './routes/cart.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import paymentWebhookRoutes from './routes/paymentWebhook.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import promotionRoutes from './routes/promotion.routes.js';
 import { sanitizeRequest } from './middleware/sanitize.middleware.js';
+import { enforceCsrfOrigin } from './middleware/csrf.middleware.js';
 import errorHandler from './middleware/error.js';
 
 const app = express();
+const allowedOrigins = String(process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((entry) => entry.trim())
+  .filter(Boolean);
 
 // Security Middlewares
 app.use(helmet());
@@ -36,13 +44,27 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const generalLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('CORS origin not allowed'));
+    },
     credentials: true,
   })
 );
@@ -56,13 +78,25 @@ app.use(
 
 app.use(express.json({ limit: '10kb' }));
 app.use(sanitizeRequest);
+app.use(enforceCsrfOrigin);
+app.use('/api/v1', generalLimiter);
 
 app.use('/api/v1/users', authLimiter);
+app.get('/api/v1/health', (_req, res) =>
+  res.status(200).json({
+    success: true,
+    message: 'Marketplace API is healthy',
+    timestamp: new Date().toISOString(),
+  })
+);
 
 app.use('/api/v1', productRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1', orderRoutes);
+app.use('/api/v1', cartRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1', adminRoutes);
+app.use('/api/v1', promotionRoutes);
 
 app.use(errorHandler);
 export default app;

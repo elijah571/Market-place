@@ -6,15 +6,32 @@ const backendBaseUrl = (
   'http://localhost:6000'
 ).replace(/\/$/, '');
 
-const apiBaseUrl = `${backendBaseUrl}/api/v1`;
+const apiBaseUrl = import.meta.env.DEV
+  ? '/api/v1'
+  : `${backendBaseUrl}/api/v1`;
 
 const apiClient = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
 });
 
-const setAccessToken = () => {};
-const clearAccessToken = () => {};
+let accessToken = null;
+
+const setAccessToken = (token) => {
+  accessToken = token || null;
+};
+
+const clearAccessToken = () => {
+  accessToken = null;
+};
+
+apiClient.interceptors.request.use((config) => {
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  return config;
+});
 
 let refreshInFlight = null;
 
@@ -22,13 +39,18 @@ const refreshAccessToken = async () => {
   if (!refreshInFlight) {
     refreshInFlight = axios
       .post(
-        `${apiBaseUrl}/users/refresh-token`,
+        import.meta.env.DEV
+          ? '/api/v1/users/refresh-token'
+          : `${apiBaseUrl}/users/refresh-token`,
         {},
         {
           withCredentials: true,
         }
       )
-      .then(() => null)
+      .then((response) => {
+        setAccessToken(response.data?.accessToken || null);
+        return response.data?.accessToken || null;
+      })
       .finally(() => {
         refreshInFlight = null;
       });

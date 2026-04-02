@@ -79,7 +79,7 @@ export const loadCurrentUser = createAsyncThunk(
   '/user/loadCurrentUser',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await apiClient.get('/users/me');
+      const { data } = await apiClient.get('/users/session');
       return data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -103,8 +103,7 @@ export const toggleWishlist = createAsyncThunk(
   '/user/toggleWishlist',
   async (productId, { rejectWithValue }) => {
     try {
-      await apiClient.post('/users/me/wishlist', { productId });
-      const { data } = await apiClient.get('/users/me/wishlist');
+      const { data } = await apiClient.post('/users/me/wishlist', { productId });
       return data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -129,6 +128,42 @@ export const trackRecentlyViewed = createAsyncThunk(
   async (productId, { rejectWithValue }) => {
     try {
       const { data } = await apiClient.post('/users/me/recently-viewed', { productId });
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const addAddress = createAsyncThunk(
+  '/user/addAddress',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.post('/users/me/addresses', payload);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const updateAddress = createAsyncThunk(
+  '/user/updateAddress',
+  async ({ id, payload }, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.put(`/users/me/addresses/${id}`, payload);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const removeAddress = createAsyncThunk(
+  '/user/removeAddress',
+  async (id, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.delete(`/users/me/addresses/${id}`);
       return data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -238,9 +273,10 @@ const userSlice = createSlice({
       .addCase(loadCurrentUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.isAuthenticated = true;
+        state.isAuthenticated = Boolean(action.payload.authenticated);
         state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
         state.wishlistProducts = [];
+        state.recentlyViewed = [];
       })
       .addCase(loadCurrentUser.rejected, (state) => {
         state.loading = false;
@@ -310,7 +346,7 @@ const userSlice = createSlice({
       .addCase(getWishlist.fulfilled, (state, action) => {
         state.loading = false;
         state.wishlist = normalizeWishlist(action.payload.wishlist);
-        state.wishlistProducts = action.payload.wishlist || [];
+        state.wishlistProducts = (action.payload.wishlist || []).filter(Boolean);
       })
       .addCase(getWishlist.rejected, (state, action) => {
         state.loading = false;
@@ -322,13 +358,55 @@ const userSlice = createSlice({
       })
       .addCase(toggleWishlist.fulfilled, (state, action) => {
         state.wishlist = normalizeWishlist(action.payload.wishlist);
-        state.wishlistProducts = action.payload.wishlist || [];
+        state.wishlistProducts = (action.payload.wishlist || []).filter(Boolean);
       })
       .addCase(toggleWishlist.rejected, (state, action) => {
         state.error = action.payload || 'Unable to update saved products';
       })
       .addCase(getRecentlyViewed.fulfilled, (state, action) => {
         state.recentlyViewed = action.payload.recentlyViewed || [];
+      })
+      .addCase(addAddress.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addAddress.fulfilled, (state, action) => {
+        state.loading = false;
+        if (state.user) {
+          state.user.addresses = action.payload.addresses || [];
+        }
+      })
+      .addCase(addAddress.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Unable to save address';
+      })
+      .addCase(updateAddress.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateAddress.fulfilled, (state, action) => {
+        state.loading = false;
+        if (state.user) {
+          state.user.addresses = action.payload.addresses || [];
+        }
+      })
+      .addCase(updateAddress.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Unable to update address';
+      })
+      .addCase(removeAddress.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(removeAddress.fulfilled, (state, action) => {
+        state.loading = false;
+        if (state.user) {
+          state.user.addresses = action.payload.addresses || [];
+        }
+      })
+      .addCase(removeAddress.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Unable to remove address';
       });
   },
 });

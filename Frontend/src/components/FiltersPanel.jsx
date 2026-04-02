@@ -12,25 +12,46 @@ const FiltersPanel = ({
   onRatingChange,
   selectedSort,
   onSortChange,
+  onClear,
 }) => {
   const priceValue = selectedPrice ?? maxPrice;
 
   return (
     <div className="filter-section">
-      <h3 className="filter-heading">Filters</h3>
+      <div className="filter-head">
+        <h3 className="filter-heading">Refine Results</h3>
+        <button type="button" className="filter-clear-btn" onClick={onClear}>
+          Clear
+        </button>
+      </div>
+
       <div className="filter">
         <h4>Category</h4>
-        <select
-          value={selectedCategory || ''}
-          onChange={(event) => onCategoryChange(event.target.value)}
-        >
-          <option value="">All</option>
-          {categories.map((category) => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-        </select>
+        <div className="filter-chip-grid">
+          <button
+            type="button"
+            className={`filter-chip ${!selectedCategory ? 'active' : ''}`}
+            onClick={() => onCategoryChange('')}
+          >
+            All
+          </button>
+          {categories.map((category) => {
+            const label = typeof category === 'string' ? category : category.label;
+            const count = typeof category === 'string' ? null : category.count;
+
+            return (
+              <button
+                type="button"
+                key={label}
+                className={`filter-chip ${selectedCategory === label ? 'active' : ''}`}
+                onClick={() => onCategoryChange(label)}
+              >
+                <span>{label}</span>
+                {count ? <small>{count}</small> : null}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="filter">
