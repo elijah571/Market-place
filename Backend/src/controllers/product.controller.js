@@ -215,6 +215,13 @@ export const getProductMeta = asyncHandler(async (_req, res) => {
   });
 });
 
+export const getHomeCollections = asyncHandler(async (_req, res) => {
+  const collections = await productCatalogService.getHomeCollections();
+  return sendSuccess(res, {
+    data: collections,
+  });
+});
+
 /* ===============================
    GET SINGLE PRODUCT
 ================================= */

@@ -14,7 +14,7 @@ import {
   isShippingInfoComplete,
   reserveInventoryForItems,
 } from '../services/commerce/cart.service.js';
-import { clearCommerceCache } from '../utils/cache.js';
+import { clearCommerceCache, clearOrderCache } from '../utils/cache.js';
 import {
   createOrderDocument,
   PAYMENT_STATUS,
@@ -146,7 +146,7 @@ const syncExistingOrderPayment = async ({
     providerResponse: raw,
   });
 
-  clearCommerceCache();
+  clearOrderCache(transactionWithOrder.user);
 
   return { order, transaction };
 };
@@ -334,7 +334,7 @@ const finalizeSuccessfulPayment = async ({
     );
 
     await session.commitTransaction();
-    clearCommerceCache();
+    clearCommerceCache(resolvedUserId);
 
     return { transaction, order, created: true };
   } catch (error) {

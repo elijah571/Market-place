@@ -109,7 +109,6 @@ const cartSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     items: {
       type: [cartItemSchema],
@@ -143,7 +142,6 @@ const cartSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'converted'],
       default: 'active',
-      index: true,
     },
     convertedOrder: {
       type: mongoose.Schema.Types.ObjectId,
@@ -153,7 +151,6 @@ const cartSchema = new mongoose.Schema(
     lastActivityAt: {
       type: Date,
       default: Date.now,
-      index: true,
     },
   },
   { timestamps: true }

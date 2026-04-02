@@ -40,6 +40,7 @@ import {
   updateAddressSchema,
   wishlistSchema,
 } from '../validation/user.validation.js';
+import { CACHE_TTLS, withCache } from '../utils/cache.js';
 
 const router = express.Router();
 //register user
@@ -58,14 +59,44 @@ router.post('/resetToken', validate(resetTokenRequestSchema), resetPasswordToken
 //reset Password
 router.put('/reset-password/:userId', validate(resetPasswordSchema), resetPassword);
 
-router.get('/me', isAuthenticated, getMyProfile);
+router.get(
+  '/me',
+  isAuthenticated,
+  withCache({
+    namespace: 'profile-me',
+    ttlSeconds: CACHE_TTLS.profile,
+    varyByUser: true,
+    tags: (req) => ['users', `profile:${req.user._id}`],
+  }),
+  getMyProfile
+);
 router.put('/me', isAuthenticated, upload.single('avatar'), updateMyProfile);
 router.post('/me/addresses', isAuthenticated, validate(addressSchema), addAddress);
 router.put('/me/addresses/:id', isAuthenticated, validate(updateAddressSchema), updateAddress);
 router.delete('/me/addresses/:id', isAuthenticated, removeAddress);
-router.get('/me/wishlist', isAuthenticated, getWishlist);
+router.get(
+  '/me/wishlist',
+  isAuthenticated,
+  withCache({
+    namespace: 'wishlist-me',
+    ttlSeconds: CACHE_TTLS.wishlist,
+    varyByUser: true,
+    tags: (req) => ['users', `wishlist:${req.user._id}`],
+  }),
+  getWishlist
+);
 router.post('/me/wishlist', isAuthenticated, validate(wishlistSchema), toggleWishlist);
-router.get('/me/recently-viewed', isAuthenticated, getRecentlyViewed);
+router.get(
+  '/me/recently-viewed',
+  isAuthenticated,
+  withCache({
+    namespace: 'recently-viewed-me',
+    ttlSeconds: CACHE_TTLS.recentlyViewed,
+    varyByUser: true,
+    tags: (req) => ['users', `recently-viewed:${req.user._id}`],
+  }),
+  getRecentlyViewed
+);
 router.post(
   '/me/recently-viewed',
   isAuthenticated,

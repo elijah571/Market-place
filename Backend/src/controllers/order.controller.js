@@ -3,7 +3,7 @@ import { Order } from '../models/order.model.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { sendSuccess } from '../utils/response.js';
-import { clearCommerceCache } from '../utils/cache.js';
+import { clearOrderCache } from '../utils/cache.js';
 import {
   buildCartSnapshot,
   isShippingInfoComplete,
@@ -101,7 +101,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     session.endSession();
   }
 
-  clearCommerceCache();
+  clearOrderCache(req.user._id);
 
   return sendSuccess(res, {
     status: 201,
@@ -268,7 +268,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   });
 
   await order.save();
-  clearCommerceCache();
+  clearOrderCache(order.user);
 
   return sendSuccess(res, {
     message: 'Order updated successfully',
@@ -288,7 +288,7 @@ export const deleteOrder = asyncHandler(async (req, res) => {
   }
 
   await order.deleteOne();
-  clearCommerceCache();
+  clearOrderCache(order.user);
 
   return sendSuccess(res, { message: 'Order deleted successfully' });
 });

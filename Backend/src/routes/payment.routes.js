@@ -11,6 +11,7 @@ import {
   initializePaymentSchema,
   verifyPaymentSchema,
 } from '../validation/payment.validation.js';
+import { CACHE_TTLS, withCache } from '../utils/cache.js';
 
 const router = express.Router();
 const paymentLimiter = rateLimit({
@@ -34,6 +35,16 @@ router.post(
   validate(verifyPaymentSchema),
   verifyPayment
 );
-router.get('/transactions/me', isAuthenticated, getMyTransactions);
+router.get(
+  '/transactions/me',
+  isAuthenticated,
+  withCache({
+    namespace: 'transactions-me',
+    ttlSeconds: CACHE_TTLS.transactions,
+    varyByUser: true,
+    tags: (req) => ['transactions', `transactions:${req.user._id}`],
+  }),
+  getMyTransactions
+);
 
 export default router;

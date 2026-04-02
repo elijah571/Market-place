@@ -120,6 +120,8 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ verificationToken: 1 });
 userSchema.index({ resetPasswordToken: 1 });
+userSchema.index({ role: 1, createdAt: -1 });
+userSchema.index({ refreshTokenHash: 1 }, { sparse: true });
 userSchema.index({ wishlist: 1 });
 userSchema.index({ 'recentlyViewed.product': 1, updatedAt: -1 });
 

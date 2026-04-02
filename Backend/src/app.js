@@ -19,6 +19,8 @@ import { sanitizeRequest } from './middleware/sanitize.middleware.js';
 import { enforceCsrfOrigin } from './middleware/csrf.middleware.js';
 import errorHandler from './middleware/error.js';
 import { logger } from './utils/logger.js';
+import { isMongoReady } from './config/db.js';
+import { isRedisEnabled, isRedisReady } from './utils/redisClient.js';
 
 const app = express();
 const allowedOrigins = String(process.env.FRONTEND_URL || '')
@@ -26,8 +28,14 @@ const allowedOrigins = String(process.env.FRONTEND_URL || '')
   .map((entry) => entry.trim())
   .filter(Boolean);
 
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
+
 // Security Middlewares
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(compression());
 app.use(cookieParser());
 
@@ -43,6 +51,7 @@ const authLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/api/v1/health' || req.path === '/api/v1/ready',
 });
 
 const generalLimiter = rateLimit({
@@ -50,6 +59,7 @@ const generalLimiter = rateLimit({
   max: 500,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/api/v1/health' || req.path === '/api/v1/ready',
 });
 
 app.use(
@@ -89,6 +99,7 @@ app.use(
 );
 
 app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(sanitizeRequest);
 app.use(enforceCsrfOrigin);
 app.use('/api/v1', generalLimiter);
@@ -101,6 +112,22 @@ app.get('/api/v1/health', (_req, res) =>
     timestamp: new Date().toISOString(),
   })
 );
+app.get('/api/v1/ready', (_req, res) => {
+  const mongoReady = isMongoReady();
+  const redisReady = !isRedisEnabled() || isRedisReady();
+
+  const statusCode = mongoReady && redisReady ? 200 : 503;
+
+  return res.status(statusCode).json({
+    success: statusCode === 200,
+    message: statusCode === 200 ? 'Marketplace API is ready' : 'Dependencies not ready',
+    services: {
+      mongodb: mongoReady ? 'ready' : 'unavailable',
+      redis: isRedisEnabled() ? (redisReady ? 'ready' : 'unavailable') : 'disabled',
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
 
 app.use('/api/v1', productRoutes);
 app.use('/api/v1/users', userRoutes);

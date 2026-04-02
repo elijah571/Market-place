@@ -63,5 +63,12 @@ transactionSchema.index({ user: 1, createdAt: -1 });
 transactionSchema.index({ cart: 1, createdAt: -1 });
 transactionSchema.index({ order: 1, createdAt: -1 });
 transactionSchema.index({ gateway: 1, idempotencyKey: 1, createdAt: -1 });
+transactionSchema.index(
+  { gateway: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    sparse: true,
+  }
+);
 
 export const Transaction = mongoose.model('Transaction', transactionSchema);

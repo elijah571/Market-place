@@ -103,6 +103,23 @@ export const productCatalogService = {
     };
   },
 
+  async getHomeCollections() {
+    const { mostViewed, topRated, categories, priceSummary } =
+      await productRepository.getHomeCollections({ limit: 8 });
+
+    return {
+      mostViewed,
+      topRated,
+      meta: {
+        categories: formatMetaCategories(categories),
+        priceRange: {
+          min: Number(priceSummary[0]?.minPrice || 0),
+          max: Number(priceSummary[0]?.maxPrice || 0),
+        },
+      },
+    };
+  },
+
   async getSingleProduct(id) {
     const product = await productRepository.incrementViewAndGetById(id);
 

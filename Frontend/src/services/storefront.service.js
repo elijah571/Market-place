@@ -2,17 +2,14 @@ import apiClient from '../utils/apiClient';
 
 export const storefrontService = {
   async getHomeCollections() {
-    const [mostViewedRes, topRatedRes, metaRes] = await Promise.all([
-      apiClient.get('/products?limit=8&sort=viewedDesc'),
-      apiClient.get('/products?limit=8&sort=ratingDesc'),
-      apiClient.get('/products/meta'),
-    ]);
-
-    return {
-      mostViewed: mostViewedRes.data?.data || [],
-      topRated: topRatedRes.data?.data || [],
-      meta: metaRes.data?.data || { categories: [], priceRange: { min: 0, max: 5000 } },
-    };
+    const { data } = await apiClient.get('/products/home');
+    return (
+      data?.data || {
+        mostViewed: [],
+        topRated: [],
+        meta: { categories: [], priceRange: { min: 0, max: 5000 } },
+      }
+    );
   },
 
   async getProductCatalog(params) {

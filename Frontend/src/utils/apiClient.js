@@ -1,14 +1,25 @@
 import axios from 'axios';
 
-const backendBaseUrl = (
-  import.meta.env.VITE_BASE_API ||
-  import.meta.env.BASE_API ||
-  'http://localhost:6000'
-).replace(/\/$/, '');
+const ensureApiBase = (value = '') => {
+  const normalized = String(value || '').replace(/\/$/, '');
+
+  if (!normalized) {
+    return '/api/v1';
+  }
+
+  return normalized.endsWith('/api/v1') ? normalized : `${normalized}/api/v1`;
+};
+
+const configuredBaseUrl = ensureApiBase(
+  import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_BASE_API ||
+    import.meta.env.BASE_API ||
+    ''
+);
 
 const apiBaseUrl = import.meta.env.DEV
   ? '/api/v1'
-  : `${backendBaseUrl}/api/v1`;
+  : configuredBaseUrl;
 
 const apiClient = axios.create({
   baseURL: apiBaseUrl,

@@ -23,5 +23,52 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      cssCodeSplit: true,
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) {
+              return undefined;
+            }
+
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/react-router-dom/')
+            ) {
+              return 'react-vendor';
+            }
+
+            if (
+              id.includes('/react-redux/') ||
+              id.includes('/@reduxjs/toolkit/') ||
+              id.includes('/@tanstack/react-query/')
+            ) {
+              return 'state-vendor';
+            }
+
+            if (
+              id.includes('/@emotion/react/') ||
+              id.includes('/@emotion/styled/') ||
+              id.includes('/@mui/icons-material/') ||
+              id.includes('/@mui/material/')
+            ) {
+              return 'ui-vendor';
+            }
+
+            if (
+              id.includes('/@stripe/react-stripe-js/') ||
+              id.includes('/@stripe/stripe-js/')
+            ) {
+              return 'stripe-vendor';
+            }
+
+            return 'vendor';
+          },
+        },
+      },
+    },
   };
 });

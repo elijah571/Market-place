@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import { ArrowBackIosNew, ArrowForwardIos, East } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import '../componentStyles/ImageSlider.css';
@@ -117,4 +117,4 @@ const ImageSlider = ({ slides = defaultSlides, autoPlayMs = 5500 }) => {
   );
 };
 
-export default ImageSlider;
+export default memo(ImageSlider);

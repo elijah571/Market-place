@@ -1,5 +1,12 @@
 import mongoose from 'mongoose';
 
+const slugify = (value = '') =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
 const productVariantSchema = new mongoose.Schema(
   {
     color: {
@@ -92,11 +99,29 @@ const productSchema = new mongoose.Schema(
       required: [true, 'Please Enter Product Name'],
       trim: true,
     },
+    brand: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     subcategory: {
       type: String,
       trim: true,
       default: '',
     },
+    slug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: '',
+    },
+    tags: [
+      {
+        type: String,
+        trim: true,
+        lowercase: true,
+      },
+    ],
     stock: {
       type: Number,
       required: [true, 'Please enter product stock'],
@@ -158,6 +183,16 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.pre('save', function () {
+  if (!this.slug && this.name) {
+    this.slug = slugify(this.name);
+  } else if (this.slug) {
+    this.slug = slugify(this.slug);
+  }
+
+  if (Array.isArray(this.tags)) {
+    this.tags = [...new Set(this.tags.map((tag) => slugify(tag)).filter(Boolean))];
+  }
+
   if (!Array.isArray(this.variants) || this.variants.length === 0) {
     return;
   }
@@ -179,10 +214,20 @@ productSchema.pre('save', function () {
 });
 
 productVariantSchema.index({ color: 1, size: 1, sku: 1 });
-productSchema.index({ name: 'text', description: 'text', category: 1, subcategory: 1 });
-productSchema.index({ category: 1, subcategory: 1, createdAt: -1 });
-productSchema.index({ category: 1, subcategory: 1, rating: -1, price: 1, createdAt: -1 });
-productSchema.index({ price: 1 });
+productSchema.index({
+  name: 'text',
+  description: 'text',
+  brand: 'text',
+  category: 'text',
+  subcategory: 'text',
+  tags: 'text',
+  slug: 'text',
+});
+productSchema.index({ slug: 1 }, { sparse: true });
+productSchema.index({ category: 1, subcategory: 1, brand: 1, createdAt: -1 });
+productSchema.index({ category: 1, price: 1, rating: -1, createdAt: -1 });
+productSchema.index({ brand: 1, createdAt: -1 });
+productSchema.index({ tags: 1, createdAt: -1 });
 productSchema.index({ stock: 1, createdAt: -1 });
 productSchema.index({ viewCount: -1, createdAt: -1 });
 

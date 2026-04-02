@@ -6,6 +6,7 @@ import {
   deleteReview,
   getAdminProducts,
   getAllProducts,
+  getHomeCollections,
   getProductMeta,
   getProductRecommendations,
   getProductReviews,
@@ -22,12 +23,29 @@ import {
   productCatalogQuerySchema,
   updateProductSchema,
 } from '../validation/product.validation.js';
+import { CACHE_TTLS } from '../utils/cache.js';
 
 const router = express.Router();
 
 router
   .route('/products/meta')
-  .get(validate(productCatalogQuerySchema, 'query'), withCache(5 * 60 * 1000), getProductMeta);
+  .get(
+    validate(productCatalogQuerySchema, 'query'),
+    withCache({
+      namespace: 'products-meta',
+      ttlSeconds: CACHE_TTLS.productMeta,
+      tags: ['catalog-meta', 'homepage', 'catalog'],
+    }),
+    getProductMeta
+  );
+router.route('/products/home').get(
+  withCache({
+    namespace: 'products-home',
+    ttlSeconds: CACHE_TTLS.homepage,
+    tags: ['homepage', 'catalog-meta', 'catalog'],
+  }),
+  getHomeCollections
+);
 router
   .route('/products')
   .post(
@@ -40,28 +58,61 @@ router
     validate(createProductSchema),
     createProduct
   )
-  .get(validate(productCatalogQuerySchema, 'query'), withCache(60 * 1000), getAllProducts);
+  .get(
+    validate(productCatalogQuerySchema, 'query'),
+    withCache({
+      namespace: 'products-catalog',
+      ttlSeconds: CACHE_TTLS.productCatalog,
+      tags: ['catalog'],
+    }),
+    getAllProducts
+  );
 router
   .route('/admin/products')
   .get(
     isAuthenticated,
     isAdmin,
     validate(productCatalogQuerySchema, 'query'),
-    withCache(60 * 1000),
+    withCache({
+      namespace: 'admin-products',
+      ttlSeconds: CACHE_TTLS.productCatalog,
+      tags: ['catalog', 'admin-dashboard'],
+    }),
     getAdminProducts
   );
 
 router
   .route('/product/reviews')
   .put(isAuthenticated, validate(createReviewSchema), addReview)
-  .get(withCache(60 * 1000), getProductReviews)
+  .get(
+    withCache({
+      namespace: 'product-reviews',
+      ttlSeconds: CACHE_TTLS.recommendations,
+      tags: (req) => ['product-reviews', `product:${req.query.id || 'unknown'}`],
+    }),
+    getProductReviews
+  )
   .delete(isAuthenticated, deleteReview);
 router
   .route('/product/:id/recommendations')
-  .get(withCache(60 * 1000), getProductRecommendations);
+  .get(
+    withCache({
+      namespace: 'product-recommendations',
+      ttlSeconds: CACHE_TTLS.recommendations,
+      tags: (req) => ['product-recommendations', `product:${req.params.id}`],
+    }),
+    getProductRecommendations
+  );
 router
   .route('/product/:id')
-  .get(withCache(60 * 1000), getSingleProduct)
+  .get(
+    withCache({
+      namespace: 'product-detail',
+      ttlSeconds: CACHE_TTLS.productDetails,
+      tags: (req) => ['catalog', `product:${req.params.id}`],
+    }),
+    getSingleProduct
+  )
   .put(
     isAuthenticated,
     isAdmin,

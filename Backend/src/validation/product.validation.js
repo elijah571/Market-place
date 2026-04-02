@@ -38,7 +38,21 @@ const baseProductSchema = {
   description: z.string().min(4, 'Description is required'),
   price: z.preprocess((val) => Number(val), z.number().positive()),
   category: z.string().min(2, 'Category is required'),
+  brand: z.string().trim().optional(),
   subcategory: z.string().trim().optional(),
+  slug: z.string().trim().optional(),
+  tags: z
+    .preprocess((val) => {
+      if (typeof val === 'string') {
+        return val
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+      }
+
+      return val;
+    }, z.array(z.string().trim()).optional())
+    .optional(),
   stock: z.preprocess((val) => Number(val), z.number().min(0)).optional(),
   variants: z
     .preprocess((val) => {
@@ -96,6 +110,8 @@ export const productCatalogQuerySchema = z.object({
     .optional(),
   category: z.string().trim().optional(),
   subcategory: z.string().trim().optional(),
+  brand: z.string().trim().optional(),
+  'tags[in]': z.string().trim().optional(),
   'price[lte]': optionalNumberString,
   'price[gte]': optionalNumberString,
   'rating[gte]': optionalNumberString,

@@ -1,8 +1,7 @@
-import React, { useMemo, useRef } from 'react';
+import React, { Suspense, lazy, memo, useMemo, useRef } from 'react';
 import '../pageStyles/Home.css';
 import Product from '../components/Product';
 import PageTitle from '../components/PageTitle';
-import ImageSlider from '../components/ImageSlider';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import ProductSkeletonGrid from '../components/ProductSkeletonGrid';
@@ -11,7 +10,9 @@ import { formatCompactNumber } from '../utils/formatters';
 import { pickRandomBackground } from '../utils/backgrounds';
 import { useHomeCollections } from '../features/catalog/catalogQueries';
 
-const HomeSliderSection = ({
+const ImageSlider = lazy(() => import('../components/ImageSlider'));
+
+const HomeSliderSection = memo(({
   sectionRef,
   kicker,
   heading,
@@ -60,7 +61,7 @@ const HomeSliderSection = ({
       <p className="home-empty-state">{emptyMessage}</p>
     )}
   </section>
-);
+));
 
 const Home = () => {
   const { recentlyViewed } = useSelector((state) => state.user);
@@ -188,7 +189,9 @@ const Home = () => {
         </section>
 
         <div className="home-container">
-          <ImageSlider />
+          <Suspense fallback={<div className="home-section">Loading editorial slider...</div>}>
+            <ImageSlider />
+          </Suspense>
           <section className="home-editorial-ribbon home-surface">
             <article>
               <span>Curated layout</span>

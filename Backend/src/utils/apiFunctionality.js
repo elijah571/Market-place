@@ -49,7 +49,10 @@ class APIFunctionality {
       $or: [
         { name: { $regex: safeKeyword, $options: 'i' } },
         { description: { $regex: safeKeyword, $options: 'i' } },
+        { brand: { $regex: safeKeyword, $options: 'i' } },
         { category: { $regex: safeKeyword, $options: 'i' } },
+        { tags: { $regex: safeKeyword, $options: 'i' } },
+        { slug: { $regex: safeKeyword, $options: 'i' } },
         { 'variants.sku': { $regex: safeKeyword, $options: 'i' } },
       ],
     });

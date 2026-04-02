@@ -18,6 +18,7 @@ import {
   verifyAccessToken,
   verifyRefreshToken,
 } from '../utils/token.js';
+import { clearUserCache } from '../utils/cache.js';
 
 const passwordOptions = {
   minLength: 6,
@@ -130,6 +131,7 @@ export const signUp = asyncHandler(async (req, res) => {
   });
 
   await sendVerificationEmail(normalizedEmail, verificationToken);
+  clearUserCache(user._id);
 
   res.status(201).json({
     status: 'success',
@@ -160,6 +162,7 @@ export const verifyAccount = asyncHandler(async (req, res) => {
   user.verificationTokenExpiresAt = undefined;
 
   await user.save();
+  clearUserCache(user._id);
 
   res.status(200).json({
     status: 'success',
@@ -434,6 +437,7 @@ export const resetPasswordToken = asyncHandler(async (req, res) => {
   user.resetPasswordExpiresAt = Date.now() + 60 * 60 * 1000;
 
   await user.save();
+  clearUserCache(user._id);
 
   await sendResetEmail(normalizedEmail, resetToken);
 
@@ -616,6 +620,7 @@ export const deleteUserById = asyncHandler(async (req, res) => {
   }
 
   await user.deleteOne();
+  clearUserCache(userId);
 
   res.status(200).json({
     status: 'success',
@@ -685,6 +690,7 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
   }
 
   await user.save();
+  clearUserCache(user._id);
 
   res.status(200).json({
     status: 'success',
@@ -712,6 +718,7 @@ export const addAddress = asyncHandler(async (req, res) => {
   });
 
   await user.save({ validateBeforeSave: false });
+  clearUserCache(user._id);
 
   res.status(201).json({
     status: 'success',
@@ -730,6 +737,7 @@ export const updateAddress = asyncHandler(async (req, res) => {
 
   Object.assign(address, updates);
   await user.save({ validateBeforeSave: false });
+  clearUserCache(user._id);
 
   res.status(200).json({
     status: 'success',
@@ -747,6 +755,7 @@ export const removeAddress = asyncHandler(async (req, res) => {
 
   address.deleteOne();
   await user.save({ validateBeforeSave: false });
+  clearUserCache(user._id);
 
   res.status(200).json({
     status: 'success',
@@ -784,6 +793,7 @@ export const toggleWishlist = asyncHandler(async (req, res) => {
   }
 
   await user.save({ validateBeforeSave: false });
+  clearUserCache(user._id);
 
   const updatedUser = await User.findById(req.user._id)
     .populate('wishlist', 'name price image rating category')
@@ -828,6 +838,7 @@ export const trackRecentlyViewed = asyncHandler(async (req, res) => {
   ].slice(0, 20);
 
   await user.save({ validateBeforeSave: false });
+  clearUserCache(user._id);
 
   res.status(200).json({
     status: 'success',
@@ -902,6 +913,7 @@ export const changePassword = asyncHandler(async (req, res) => {
   user.tokenVersion += 1;
 
   await user.save();
+  clearUserCache(user._id);
 
   res.status(200).json({
     status: 'success',

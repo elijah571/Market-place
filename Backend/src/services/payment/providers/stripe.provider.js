@@ -6,6 +6,7 @@ const stripeClient = process.env.STRIPE_SECRET_KEY
       apiVersion: '2026-02-25.clover',
     })
   : null;
+const webhookTolerance = Number(process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS || 300);
 
 const toSmallestUnit = (amount, currency = 'USD') => {
   const zeroDecimalCurrencies = new Set(['JPY', 'KRW']);
@@ -35,7 +36,7 @@ const fromSmallestUnit = (amount, currency = 'USD') => {
 export const stripeProvider = {
   gateway: 'stripe',
 
-  async initialize({ amount, currency, metadata = {} }, { idempotencyKey } = {}) {
+  async initialize({ amount, currency, email, metadata = {} }, { idempotencyKey } = {}) {
     if (!stripeClient) {
       throw new AppError('Stripe is not configured', 500);
     }
@@ -45,6 +46,10 @@ export const stripeProvider = {
         amount: toSmallestUnit(amount, currency),
         currency: currency.toLowerCase(),
         metadata,
+        receipt_email: email,
+        description: metadata?.cartId
+          ? `Marketplace checkout for cart ${metadata.cartId}`
+          : 'Marketplace checkout',
         automatic_payment_methods: { enabled: true },
       },
       idempotencyKey ? { idempotencyKey } : undefined
@@ -90,12 +95,14 @@ export const stripeProvider = {
     const event = stripeClient.webhooks.constructEvent(
       payload,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET
+      process.env.STRIPE_WEBHOOK_SECRET,
+      webhookTolerance
     );
 
     if (
       ![
         'payment_intent.succeeded',
+        'payment_intent.processing',
         'payment_intent.payment_failed',
         'payment_intent.canceled',
         'charge.refunded',
@@ -121,6 +128,8 @@ export const stripeProvider = {
       status:
         event.type === 'payment_intent.succeeded'
           ? 'successful'
+          : event.type === 'payment_intent.processing'
+            ? 'pending'
           : event.type === 'charge.refunded'
             ? 'refunded'
             : 'failed',

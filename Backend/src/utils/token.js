@@ -5,8 +5,14 @@ const ACCESS_COOKIE_NAME = 'accessToken';
 const REFRESH_COOKIE_NAME = 'refreshToken';
 
 const isProd = process.env.NODE_ENV === 'production';
-const sameSite = isProd ? 'none' : 'lax';
-const secure = isProd;
+const sameSite = process.env.COOKIE_SAME_SITE || (isProd ? 'none' : 'lax');
+const secure =
+  process.env.COOKIE_SECURE !== undefined
+    ? ['1', 'true', 'yes', 'on'].includes(
+        String(process.env.COOKIE_SECURE).trim().toLowerCase()
+      )
+    : isProd;
+const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
 const accessTokenMaxAge =
   Number(process.env.JWT_ACCESS_MS) || 15 * 60 * 1000;
 const refreshTokenMaxAge =
@@ -37,6 +43,7 @@ export const setAuthCookies = (res, accessToken, refreshToken) => {
     secure,
     sameSite,
     maxAge: accessTokenMaxAge,
+    domain: cookieDomain,
   });
 
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
@@ -44,6 +51,7 @@ export const setAuthCookies = (res, accessToken, refreshToken) => {
     secure,
     sameSite,
     maxAge: refreshTokenMaxAge,
+    domain: cookieDomain,
   });
 };
 
@@ -53,12 +61,14 @@ export const clearAuthCookies = (res) => {
     secure,
     sameSite,
     expires: new Date(0),
+    domain: cookieDomain,
   });
   res.cookie(REFRESH_COOKIE_NAME, '', {
     httpOnly: true,
     secure,
     sameSite,
     expires: new Date(0),
+    domain: cookieDomain,
   });
 };
 

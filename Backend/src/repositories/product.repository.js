@@ -47,6 +47,56 @@ export const productRepository = {
     ]);
   },
 
+  async getHomeCollections({ limit = 8 } = {}) {
+    const normalizedLimit = Math.max(1, Math.min(Number(limit) || 8, 20));
+
+    const [mostViewed, topRated, categories, priceSummary] = await Promise.all([
+      Product.find({})
+        .select(productListProjection)
+        .sort({ viewCount: -1, createdAt: -1 })
+        .limit(normalizedLimit)
+        .lean(),
+      Product.find({})
+        .select(productListProjection)
+        .sort({ rating: -1, numOfReviews: -1, createdAt: -1 })
+        .limit(normalizedLimit)
+        .lean(),
+      Product.aggregate([
+        {
+          $group: {
+            _id: {
+              category: '$category',
+              subcategory: '$subcategory',
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: {
+            '_id.category': 1,
+            '_id.subcategory': 1,
+          },
+        },
+      ]),
+      Product.aggregate([
+        {
+          $group: {
+            _id: null,
+            minPrice: { $min: '$price' },
+            maxPrice: { $max: '$price' },
+          },
+        },
+      ]),
+    ]);
+
+    return {
+      mostViewed,
+      topRated,
+      categories,
+      priceSummary,
+    };
+  },
+
   incrementViewAndGetById(id) {
     return Product.findByIdAndUpdate(
       id,

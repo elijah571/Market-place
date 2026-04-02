@@ -1,6 +1,7 @@
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Cart } from '../models/cart.model.js';
 import { sendSuccess } from '../utils/response.js';
+import { clearCartCache } from '../utils/cache.js';
 import {
   getAbandonedCartCutoff,
   getActiveCartForUser,
@@ -34,6 +35,7 @@ export const syncMyCart = asyncHandler(async (req, res) => {
     shippingInfo,
     promoCode,
   });
+  clearCartCache(req.user._id);
 
   return sendSuccess(res, {
     message: 'Cart synchronized successfully',
@@ -50,6 +52,7 @@ export const mergeMyCart = asyncHandler(async (req, res) => {
     promoCode,
     merge: true,
   });
+  clearCartCache(req.user._id);
 
   return sendSuccess(res, {
     message: 'Guest cart merged successfully',

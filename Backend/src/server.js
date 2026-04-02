@@ -1,14 +1,22 @@
 import dotenv from 'dotenv';
-import { connectDb } from './config/db.js';
+import { connectDb, disconnectDb } from './config/db.js';
 import app from './app.js';
 import { logger } from './utils/logger.js';
+import { connectRedis, disconnectRedis } from './utils/redisClient.js';
 
 dotenv.config();
 
 const PORT = process.env.PORT || 6000;
 let server;
+let shuttingDown = false;
 
 const shutdown = (signal, error = null) => {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+
   if (error) {
     logger.error(`Process shutting down after ${signal}`, {
       message: error.message,
@@ -19,17 +27,21 @@ const shutdown = (signal, error = null) => {
   }
 
   if (!server) {
-    process.exit(error ? 1 : 0);
+    Promise.allSettled([disconnectDb(), disconnectRedis()]).finally(() => {
+      process.exit(error ? 1 : 0);
+    });
     return;
   }
 
-  server.close(() => {
+  server.close(async () => {
+    await Promise.allSettled([disconnectDb(), disconnectRedis()]);
     process.exit(error ? 1 : 0);
   });
 };
 
 const bootstrap = async () => {
   await connectDb();
+  await connectRedis();
 
   server = app.listen(PORT, () => {
     logger.info('Server started', {

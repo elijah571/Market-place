@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
 import '../componentStyles/Product.css';
 import { Link } from 'react-router-dom';
 import Rating from './Rating';
@@ -41,6 +41,7 @@ const Product = ({ product }) => {
             alt={product.name}
             className="product-image-card"
             loading="lazy"
+            decoding="async"
           />
           <span className="product-badge">{product.category || 'Featured'}</span>
           <button
@@ -82,4 +83,4 @@ const Product = ({ product }) => {
   );
 };
 
-export default Product;
+export default memo(Product);
