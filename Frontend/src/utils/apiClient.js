@@ -7,6 +7,10 @@ const ensureApiBase = (value = '') => {
     return '/api/v1';
   }
 
+  if (normalized.endsWith('/api')) {
+    return `${normalized}/v1`;
+  }
+
   return normalized.endsWith('/api/v1') ? normalized : `${normalized}/api/v1`;
 };
 

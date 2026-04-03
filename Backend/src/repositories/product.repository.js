@@ -30,6 +30,7 @@ export const productRepository = {
         },
         {
           $sort: {
+            count: -1,
             '_id.category': 1,
             '_id.subcategory': 1,
           },

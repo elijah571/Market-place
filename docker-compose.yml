@@ -2,10 +2,18 @@ services:
   mongodb:
     image: mongo:7
     restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-marketplace_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-marketplace_admin_password}
+      MONGO_INITDB_DATABASE: marketplace
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' mongodb://127.0.0.1:27017/test | grep 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@127.0.0.1:27017/admin | grep 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -37,11 +45,12 @@ services:
     environment:
       NODE_ENV: production
       PORT: 6000
-      MONGO_URI: mongodb://mongodb:27017/marketplace
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-marketplace_admin}:${MONGO_INITDB_ROOT_PASSWORD:-marketplace_admin_password}@mongodb:27017/marketplace?authSource=admin
       REDIS_URL: redis://redis:6379
       REDIS_ENABLED: "true"
       REDIS_REQUIRED: "false"
       FRONTEND_URL: http://localhost,http://localhost:8080,http://frontend,http://nginx
+      FLUTTERWAVE_REDIRECT_URL: http://localhost:8080/payment-success
       TRUST_PROXY_HOPS: 1
       COOKIE_SECURE: "false"
       COOKIE_SAME_SITE: lax

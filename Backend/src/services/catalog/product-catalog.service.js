@@ -52,7 +52,24 @@ const formatMetaCategories = (categories = []) => {
     return acc;
   }, {});
 
-  return Object.values(groupedCategories);
+  return Object.values(groupedCategories)
+    .map((category) => ({
+      ...category,
+      subcategories: (category.subcategories || []).sort((a, b) => {
+        if (b.count !== a.count) {
+          return b.count - a.count;
+        }
+
+        return a.label.localeCompare(b.label);
+      }),
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count;
+      }
+
+      return a.label.localeCompare(b.label);
+    });
 };
 
 const getCatalogListing = async (query, { admin = false } = {}) => {

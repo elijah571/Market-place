@@ -3,7 +3,9 @@ import { AppError } from '../../../utils/AppError.js';
 
 const stripeClient = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2026-02-25.clover',
+      ...(process.env.STRIPE_API_VERSION
+        ? { apiVersion: process.env.STRIPE_API_VERSION }
+        : {}),
     })
   : null;
 const webhookTolerance = Number(process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS || 300);

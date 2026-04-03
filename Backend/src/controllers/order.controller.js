@@ -193,11 +193,38 @@ export const getAllrdeOrsByAdmin = asyncHandler(async (req, res) => {
   const page = Number(req.query.page) || 1;
   const limit = Math.min(Number(req.query.limit) || 20, 100);
   const skip = (page - 1) * limit;
+  const orderStatus = String(req.query.status || '').trim();
+  const paymentStatus = String(req.query.paymentStatus || '').trim();
+  const search = String(req.query.search || '').trim();
+
+  const query = {};
+
+  if (orderStatus) {
+    query.orderStatus = orderStatus;
+  }
+
+  if (paymentStatus) {
+    query['paymentInfo.status'] = paymentStatus;
+  }
+
+  if (search) {
+    query.$or = [
+      { 'orderItems.name': { $regex: search, $options: 'i' } },
+      { promoCode: { $regex: search, $options: 'i' } },
+      { 'paymentInfo.id': { $regex: search, $options: 'i' } },
+    ];
+  }
 
   const [orders, totalOrders, amountSummary] = await Promise.all([
-    Order.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-    Order.countDocuments(),
+    Order.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('orderStatus paymentInfo totalPrice createdAt deliveredAt')
+      .lean(),
+    Order.countDocuments(query),
     Order.aggregate([
+      ...(Object.keys(query).length ? [{ $match: query }] : []),
       {
         $group: {
           _id: null,

@@ -109,9 +109,29 @@ router.put('/change-password', isAuthenticated, validate(changePasswordSchema), 
 
 router.put('/update/profile/:userId', isAuthenticated, isAdmin, updateProfile);
 //Get All users
-router.get('/', isAuthenticated, isAdmin, getAllUsers);
+router.get(
+  '/',
+  isAuthenticated,
+  isAdmin,
+  withCache({
+    namespace: 'admin-users',
+    ttlSeconds: CACHE_TTLS.profile,
+    tags: ['users', 'admin-dashboard'],
+  }),
+  getAllUsers
+);
 //Get user by id
-router.get('/:userId', isAuthenticated, isAdmin, getUserById);
+router.get(
+  '/:userId',
+  isAuthenticated,
+  isAdmin,
+  withCache({
+    namespace: 'admin-user-detail',
+    ttlSeconds: CACHE_TTLS.profile,
+    tags: ['users', 'admin-dashboard'],
+  }),
+  getUserById
+);
 //Delete user
 router.delete('/delete/:userId', isAuthenticated, isAdmin, deleteUserById);
 

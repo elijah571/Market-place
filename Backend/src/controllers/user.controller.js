@@ -580,12 +580,45 @@ export const updateProfile = asyncHandler(async (req, res) => {
    GET ALL USERS
 ================================= */
 export const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({}).select('-password');
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  const skip = (page - 1) * limit;
+  const role = String(req.query.role || '').trim();
+  const search = String(req.query.search || '').trim();
+
+  const query = {};
+
+  if (role) {
+    query.role = role;
+  }
+
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  const [users, total] = await Promise.all([
+    User.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('name email role avatar isVerified createdAt')
+      .lean(),
+    User.countDocuments(query),
+  ]);
 
   res.status(200).json({
     status: 'success',
     results: users.length,
     users: users.map(serializeUser),
+    meta: {
+      total,
+      page,
+      limit,
+      totalPage: Math.ceil(total / limit),
+    },
   });
 });
 
