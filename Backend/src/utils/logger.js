@@ -12,11 +12,18 @@ const writeLog = (level, message, meta = {}) => {
     return;
   }
 
+  const normalizedMeta = { ...meta };
+
+  if (Object.hasOwn(normalizedMeta, 'message')) {
+    normalizedMeta.errorMessage = normalizedMeta.message;
+    delete normalizedMeta.message;
+  }
+
   const payload = {
+    ...normalizedMeta,
     level,
     message,
     timestamp: new Date().toISOString(),
-    ...meta,
   };
 
   const serialized = JSON.stringify(payload);

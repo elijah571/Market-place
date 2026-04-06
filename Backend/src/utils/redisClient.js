@@ -48,17 +48,51 @@ const redisUrl = buildRedisUrl();
 const redisEnabled = parseBoolean(process.env.REDIS_ENABLED, Boolean(redisUrl));
 const redisRequired = parseBoolean(process.env.REDIS_REQUIRED, false);
 const rejectUnauthorized = parseBoolean(process.env.REDIS_TLS_REJECT_UNAUTHORIZED, true);
+const connectTimeoutMs = Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 5000);
+const reconnectDelayMs = Number(process.env.REDIS_RETRY_DELAY_MS || 2000);
+const reconnectMaxAttempts = Number(
+  process.env.REDIS_RECONNECT_MAX_ATTEMPTS ?? (redisRequired ? 10 : 0)
+);
 
 let ready = false;
+
+const buildSocketOptions = () => {
+  if (!redisEnabled || !redisUrl) {
+    return undefined;
+  }
+
+  const useTls =
+    redisUrl.startsWith('rediss://') || parseBoolean(process.env.REDIS_TLS, false);
+  const socketOptions = {
+    connectTimeout: Number.isFinite(connectTimeoutMs) && connectTimeoutMs > 0
+      ? connectTimeoutMs
+      : 5000,
+    reconnectStrategy: (retries) => {
+      if (!Number.isFinite(reconnectMaxAttempts) || reconnectMaxAttempts <= 0) {
+        return false;
+      }
+
+      if (retries >= reconnectMaxAttempts) {
+        return false;
+      }
+
+      return Math.min(reconnectDelayMs * (retries + 1), 5000);
+    },
+  };
+
+  if (useTls) {
+    socketOptions.tls = true;
+    socketOptions.rejectUnauthorized = rejectUnauthorized;
+  }
+
+  return socketOptions;
+};
 
 const redisClientOptions =
   redisEnabled && redisUrl
     ? {
         url: redisUrl,
-        socket:
-          redisUrl.startsWith('rediss://') || parseBoolean(process.env.REDIS_TLS, false)
-            ? { tls: true, rejectUnauthorized }
-            : undefined,
+        socket: buildSocketOptions(),
       }
     : null;
 

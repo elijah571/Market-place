@@ -8,6 +8,19 @@ const PORT = process.env.PORT || 6000;
 let server;
 let shuttingDown = false;
 
+const startServer = () =>
+  new Promise((resolve, reject) => {
+    const nextServer = app.listen(PORT, () => {
+      logger.info('Server started', {
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development',
+      });
+      resolve(nextServer);
+    });
+
+    nextServer.on('error', reject);
+  });
+
 const shutdown = (signal, error = null) => {
   if (shuttingDown) {
     return;
@@ -39,13 +52,10 @@ const shutdown = (signal, error = null) => {
 
 const bootstrap = async () => {
   await connectDb();
-  await connectRedis();
+  server = await startServer();
 
-  server = app.listen(PORT, () => {
-    logger.info('Server started', {
-      port: PORT,
-      environment: process.env.NODE_ENV || 'development',
-    });
+  void connectRedis().catch((error) => {
+    shutdown('redis_connection_error', error);
   });
 };
 
