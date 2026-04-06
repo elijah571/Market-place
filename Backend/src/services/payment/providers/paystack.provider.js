@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { AppError } from '../../../utils/AppError.js';
+import { buildPaymentReturnUrl } from '../paymentUrls.js';
 
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
 
@@ -18,23 +19,34 @@ export const paystackProvider = {
   gateway: 'paystack',
 
   async initialize({ amount, currency, email, metadata = {} }) {
+    const reference =
+      metadata?.reference ||
+      `ps_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const callbackUrl = buildPaymentReturnUrl({
+      gateway: 'paystack',
+      reference,
+      cartId: metadata?.cartId || '',
+    });
+
     const { data } = await axios.post(
       `${PAYSTACK_BASE_URL}/transaction/initialize`,
       {
         email,
+        reference,
         amount: Math.round(amount * 100),
         currency,
         metadata,
+        ...(callbackUrl ? { callback_url: callbackUrl } : {}),
       },
       { headers: getPaystackHeaders() }
     );
 
-    if (!data?.status || !data?.data?.reference) {
+    if (!data?.status || !data?.data?.reference || !data?.data?.authorization_url) {
       throw new AppError('Unable to initialize Paystack payment', 400);
     }
 
     return {
-      reference: data.data.reference,
+      reference: data.data.reference || reference,
       status: 'pending',
       raw: data,
       nextAction: {

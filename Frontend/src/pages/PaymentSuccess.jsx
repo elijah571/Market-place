@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
@@ -15,6 +15,7 @@ const PaymentSuccess = () => {
   const gateway = searchParams.get('gateway');
   const reference = searchParams.get('reference');
   const cartId = searchParams.get('cartId');
+  const autoVerifyAttemptRef = useRef('');
   const hasMatchingTransaction =
     transaction?.reference === reference || transaction?.paymentInfo?.id === reference;
 
@@ -47,6 +48,7 @@ const PaymentSuccess = () => {
 
   useEffect(() => {
     dispatch(clearPaymentState());
+    autoVerifyAttemptRef.current = '';
   }, [dispatch, gateway, reference]);
 
   useEffect(() => {
@@ -56,10 +58,19 @@ const PaymentSuccess = () => {
   }, [error]);
 
   useEffect(() => {
-    if (gateway && reference && !hasMatchingTransaction && !loading) {
+    const attemptKey = [gateway, reference, cartId].filter(Boolean).join(':');
+
+    if (
+      gateway &&
+      reference &&
+      !hasMatchingTransaction &&
+      !loading &&
+      autoVerifyAttemptRef.current !== attemptKey
+    ) {
+      autoVerifyAttemptRef.current = attemptKey;
       handleVerifyPayment();
     }
-  }, [gateway, handleVerifyPayment, hasMatchingTransaction, loading, reference]);
+  }, [cartId, gateway, handleVerifyPayment, hasMatchingTransaction, loading, reference]);
 
   return (
     <>

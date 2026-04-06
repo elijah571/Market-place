@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { AppError } from '../../../utils/AppError.js';
+import { buildPaymentReturnUrl } from '../paymentUrls.js';
 
 const FLUTTERWAVE_BASE_URL = 'https://api.flutterwave.com/v3';
 
@@ -22,6 +23,12 @@ export const flutterwaveProvider = {
 
   async initialize({ amount, currency, email, metadata = {} }) {
     const txRef = `fw_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const redirectUrl = buildPaymentReturnUrl({
+      gateway: 'flutterwave',
+      reference: txRef,
+      cartId: metadata?.cartId || '',
+      targetUrl: process.env.FLUTTERWAVE_REDIRECT_URL || '',
+    });
 
     const { data } = await axios.post(
       `${FLUTTERWAVE_BASE_URL}/payments`,
@@ -29,7 +36,13 @@ export const flutterwaveProvider = {
         tx_ref: txRef,
         amount,
         currency,
-        redirect_url: process.env.FLUTTERWAVE_REDIRECT_URL || process.env.FRONTEND_URL,
+        redirect_url:
+          redirectUrl ||
+          buildPaymentReturnUrl({
+            gateway: 'flutterwave',
+            reference: txRef,
+            cartId: metadata?.cartId || '',
+          }),
         customer: {
           email,
         },

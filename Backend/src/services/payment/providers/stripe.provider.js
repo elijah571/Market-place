@@ -1,14 +1,37 @@
 import Stripe from 'stripe';
 import { AppError } from '../../../utils/AppError.js';
 
-const stripeClient = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      ...(process.env.STRIPE_API_VERSION
-        ? { apiVersion: process.env.STRIPE_API_VERSION }
-        : {}),
-    })
-  : null;
-const webhookTolerance = Number(process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS || 300);
+let cachedSecretKey = '';
+let cachedApiVersion = '';
+let cachedClient = null;
+
+const getStripeClient = () => {
+  const secretKey = String(process.env.STRIPE_SECRET_KEY || '').trim();
+  const apiVersion = String(process.env.STRIPE_API_VERSION || '').trim();
+
+  if (!secretKey) {
+    return null;
+  }
+
+  if (
+    cachedClient &&
+    cachedSecretKey === secretKey &&
+    cachedApiVersion === apiVersion
+  ) {
+    return cachedClient;
+  }
+
+  cachedSecretKey = secretKey;
+  cachedApiVersion = apiVersion;
+  cachedClient = new Stripe(secretKey, {
+    ...(apiVersion ? { apiVersion } : {}),
+  });
+
+  return cachedClient;
+};
+
+const getWebhookTolerance = () =>
+  Number(process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS || 300);
 
 const toSmallestUnit = (amount, currency = 'USD') => {
   const zeroDecimalCurrencies = new Set(['JPY', 'KRW']);
@@ -39,6 +62,8 @@ export const stripeProvider = {
   gateway: 'stripe',
 
   async initialize({ amount, currency, email, metadata = {} }, { idempotencyKey } = {}) {
+    const stripeClient = getStripeClient();
+
     if (!stripeClient) {
       throw new AppError('Stripe is not configured', 500);
     }
@@ -68,6 +93,8 @@ export const stripeProvider = {
   },
 
   async verify({ reference }) {
+    const stripeClient = getStripeClient();
+
     if (!stripeClient) {
       throw new AppError('Stripe is not configured', 500);
     }
@@ -86,6 +113,8 @@ export const stripeProvider = {
   },
 
   async verifyWebhook({ payload, signature }) {
+    const stripeClient = getStripeClient();
+
     if (!stripeClient) {
       throw new AppError('Stripe is not configured', 500);
     }
@@ -98,7 +127,7 @@ export const stripeProvider = {
       payload,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET,
-      webhookTolerance
+      getWebhookTolerance()
     );
 
     if (

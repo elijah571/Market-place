@@ -204,15 +204,11 @@ const Checkout = () => {
       }
 
       if (payment?.nextAction?.authorizationUrl) {
-        window.open(payment.nextAction.authorizationUrl, '_blank');
+        window.location.assign(payment.nextAction.authorizationUrl);
+        return;
       }
 
-      toast.info('Complete payment and verify on the next page');
-      navigate(
-        `/payment-success?gateway=${gateway}&reference=${payment?.reference}&cartId=${
-          syncedCart._id || cartId
-        }`
-      );
+      toast.info('Payment initialized. Continue with verification once the gateway redirects back.');
     } catch (error) {
       toast.error(error?.message || error || 'Unable to complete checkout');
     } finally {
