@@ -1,6 +1,5 @@
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Cart } from '../models/cart.model.js';
-import { Order } from '../models/order.model.js';
 import { Transaction } from '../models/transaction.model.js';
 import { AppError } from '../utils/AppError.js';
 import { paymentService } from '../services/payment/payment.service.js';
@@ -11,340 +10,17 @@ import {
   getBlockingCartIssues,
   hasBlockingCartIssues,
   isShippingInfoComplete,
-  reserveInventoryForItems,
 } from '../services/commerce/cart.service.js';
-import { clearCommerceCache, clearOrderCache } from '../utils/cache.js';
 import {
-  createOrderDocument,
-  PAYMENT_STATUS,
-  syncOrderPaymentState,
-} from '../services/commerce/order.service.js';
-import { runWithOptionalTransaction } from '../utils/mongoTransactions.js';
+  findReusableTransaction,
+  recordInitializedTransaction,
+  serializeTransactionResponse,
+  verifyPaymentForUser,
+} from '../services/payment/paymentTransaction.service.js';
 
 const normalizeGateway = (gateway) => String(gateway || '').toLowerCase();
-const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
-
-const toOrderPaymentStatus = (status) => {
-  const normalizedStatus = String(status || '').toLowerCase();
-
-  if (normalizedStatus === 'successful') {
-    return PAYMENT_STATUS.PAID;
-  }
-
-  if (normalizedStatus === 'failed') {
-    return PAYMENT_STATUS.FAILED;
-  }
-
-  if (normalizedStatus === 'refunded') {
-    return PAYMENT_STATUS.REFUNDED;
-  }
-
-  return PAYMENT_STATUS.PENDING;
-};
-
-const saveTransaction = async ({
-  gateway,
-  reference,
-  amount,
-  currency,
-  status,
-  userId,
-  orderId,
-  cartId,
-  idempotencyKey,
-  providerResponse,
-  session,
-}) => {
-  const nextValues = {
-    gateway,
-    reference,
-    amount,
-    currency,
-    status,
-    user: userId,
-    providerResponse,
-  };
-
-  if (orderId) {
-    nextValues.order = orderId;
-  }
-
-  if (cartId) {
-    nextValues.cart = cartId;
-  }
-
-  if (idempotencyKey) {
-    nextValues.idempotencyKey = idempotencyKey;
-  }
-
-  const transaction = await Transaction.findOneAndUpdate(
-    { gateway, reference },
-    { $set: nextValues },
-    {
-      new: true,
-      upsert: true,
-      runValidators: true,
-      setDefaultsOnInsert: true,
-      ...(session ? { session } : {}),
-    }
-  );
-
-  return transaction;
-};
-
-const findExistingOrderForTransaction = async (gateway, reference) => {
-  const existingTransaction = await Transaction.findOne({ gateway, reference }).populate(
-    'order'
-  );
-
-  if (existingTransaction?.order) {
-    return existingTransaction;
-  }
-
-  return null;
-};
-
-const syncExistingOrderPayment = async ({
-  gateway,
-  reference,
-  status,
-  providerStatus,
-  amount,
-  currency,
-  raw,
-}) => {
-  const transactionWithOrder = await findExistingOrderForTransaction(gateway, reference);
-
-  if (!transactionWithOrder?.order) {
-    return null;
-  }
-
-  const order = transactionWithOrder.order;
-  syncOrderPaymentState(order, {
-    reference,
-    gateway,
-    paymentStatus: toOrderPaymentStatus(status),
-    providerStatus,
-    amount,
-    currency,
-    actor: 'payment_webhook',
-    note: providerStatus,
-  });
-
-  await order.save({ validateBeforeSave: false });
-
-  const transaction = await saveTransaction({
-    gateway,
-    reference,
-    amount,
-    currency,
-    status,
-    userId: transactionWithOrder.user,
-    orderId: order._id,
-    cartId: transactionWithOrder.cart,
-    idempotencyKey: transactionWithOrder.idempotencyKey,
-    providerResponse: raw,
-  });
-
-  clearOrderCache(transactionWithOrder.user);
-
-  return { order, transaction };
-};
-
-const finalizeSuccessfulPayment = async ({
-  gateway,
-  reference,
-  amount,
-  currency,
-  providerStatus,
-  providerResponse,
-  cartId,
-  userId,
-}) => {
-  const existingTransaction = await Transaction.findOne({ gateway, reference }).populate(
-    'order'
-  );
-
-  if (existingTransaction?.order) {
-    syncOrderPaymentState(existingTransaction.order, {
-      reference,
-      gateway,
-      paymentStatus: PAYMENT_STATUS.PAID,
-      providerStatus,
-      amount,
-      currency,
-      actor: 'payment_verification',
-      note: providerStatus,
-    });
-    await existingTransaction.order.save({ validateBeforeSave: false });
-
-    const transaction = await saveTransaction({
-      gateway,
-      reference,
-      amount,
-      currency,
-      status: 'successful',
-      userId: existingTransaction.user,
-      orderId: existingTransaction.order._id,
-      cartId: existingTransaction.cart,
-      idempotencyKey: existingTransaction.idempotencyKey,
-      providerResponse,
-    });
-
-    return {
-      transaction,
-      order: existingTransaction.order,
-      created: false,
-    };
-  }
-
-  const resolvedCartId = cartId || existingTransaction?.cart;
-  const resolvedUserId = userId || existingTransaction?.user;
-
-  if (!resolvedCartId || !resolvedUserId) {
-    throw new AppError('Unable to resolve checkout cart for payment finalization', 400);
-  }
-
-  const result = await runWithOptionalTransaction(async (session) => {
-    const activeCartQuery = Cart.findOne({
-      _id: resolvedCartId,
-      user: resolvedUserId,
-      status: 'active',
-    });
-
-    if (session) {
-      activeCartQuery.session(session);
-    }
-
-    const cart = await activeCartQuery;
-
-    if (!cart) {
-      const convertedCartQuery = Cart.findOne({
-        _id: resolvedCartId,
-        user: resolvedUserId,
-      }).populate('convertedOrder');
-
-      if (session) {
-        convertedCartQuery.session(session);
-      }
-
-      const convertedCart = await convertedCartQuery;
-
-      if (convertedCart?.convertedOrder) {
-        const transaction = await saveTransaction({
-          gateway,
-          reference,
-          amount,
-          currency,
-          status: 'successful',
-          userId: resolvedUserId,
-          orderId: convertedCart.convertedOrder._id,
-          cartId: convertedCart._id,
-          idempotencyKey: existingTransaction?.idempotencyKey,
-          providerResponse,
-          session,
-        });
-
-        return {
-          transaction,
-          order: convertedCart.convertedOrder,
-          created: false,
-        };
-      }
-
-      throw new AppError('Checkout cart not found or already converted', 404);
-    }
-
-    const snapshot = await buildCartSnapshot(
-      {
-        items: cart.items,
-        shippingInfo: cart.shippingInfo,
-        promoCode: cart.promoCode,
-        currency,
-      },
-      { session }
-    );
-
-    if (!snapshot.items.length) {
-      throw new AppError('Cannot finalize payment for an empty cart', 400);
-    }
-
-    if (!isShippingInfoComplete(snapshot.shippingInfo)) {
-      throw new AppError('Shipping information is incomplete for this checkout', 400);
-    }
-
-    if (hasBlockingCartIssues(snapshot.issues)) {
-      throw new AppError(getBlockingCartIssues(snapshot.issues)[0].message, 409);
-    }
-
-    if (
-      Math.abs(roundMoney(amount || 0) - roundMoney(snapshot.summary.totalPrice || 0)) >
-      0.01
-    ) {
-      throw new AppError('Payment amount does not match the server cart total', 409);
-    }
-
-    await reserveInventoryForItems(snapshot.items, { session });
-
-    const createOrderArgs = [
-      createOrderDocument({
-        userId: resolvedUserId,
-        cartId: cart._id,
-        snapshot,
-        payment: {
-          id: reference,
-          gateway,
-          status: PAYMENT_STATUS.PAID,
-          providerStatus,
-          amountPaid: amount,
-          currency,
-        },
-        orderStatus: 'Processing',
-        actor: 'payment_gateway',
-      }),
-    ];
-
-    const [order] = session
-      ? await Order.create(createOrderArgs, { session })
-      : await Order.create(createOrderArgs);
-
-    cart.items = snapshot.items;
-    cart.summary = snapshot.summary;
-    cart.issues = snapshot.issues;
-    cart.status = 'converted';
-    cart.convertedOrder = order._id;
-    cart.lastActivityAt = new Date();
-    await cart.save({ validateBeforeSave: false, ...(session ? { session } : {}) });
-
-    const transaction = await Transaction.findOneAndUpdate(
-      { gateway, reference },
-      {
-        gateway,
-        reference,
-        amount,
-        currency,
-        status: 'successful',
-        user: resolvedUserId,
-        cart: cart._id,
-        order: order._id,
-        providerResponse,
-      },
-      {
-        new: true,
-        upsert: true,
-        runValidators: true,
-        setDefaultsOnInsert: true,
-        ...(session ? { session } : {}),
-      }
-    );
-
-    return { transaction, order, created: true };
-  });
-
-  clearCommerceCache(resolvedUserId);
-
-  return result;
-};
+const serializeDocument = (document) =>
+  typeof document?.toObject === 'function' ? document.toObject() : document;
 
 export const initializePayment = asyncHandler(async (req, res) => {
   const { gateway, cartId, currency = 'USD' } = req.body;
@@ -395,6 +71,25 @@ export const initializePayment = asyncHandler(async (req, res) => {
   await cart.save({ validateBeforeSave: false });
 
   const idempotencyKey = `${normalizedGateway}:${cart._id}:${cart.updatedAt.getTime()}`;
+  const reusableTransaction = await findReusableTransaction({
+    gateway: normalizedGateway,
+    idempotencyKey,
+    userId: req.user._id,
+    cartId: cart._id,
+  });
+
+  if (reusableTransaction?.status === 'pending') {
+    return sendSuccess(res, {
+      message: 'Existing payment session reused successfully',
+      data: {
+        transaction: reusableTransaction,
+        payment: paymentService.rehydrateInitialization({
+          gateway: normalizedGateway,
+          transaction: reusableTransaction,
+        }),
+      },
+    });
+  }
 
   const payload = {
     amount: Number(snapshot.summary.totalPrice),
@@ -414,16 +109,13 @@ export const initializePayment = asyncHandler(async (req, res) => {
     idempotencyKey,
   });
 
-  const transaction = await saveTransaction({
+  const transaction = await recordInitializedTransaction({
     gateway: normalizedGateway,
-    reference: initialized.reference,
-    amount: Number(snapshot.summary.totalPrice),
-    currency: payload.currency,
-    status: 'pending',
+    initialization: initialized,
+    payload,
     userId: req.user._id,
     cartId: cart._id,
     idempotencyKey,
-    providerResponse: initialized.raw,
   });
 
   return sendSuccess(res, {
@@ -435,9 +127,11 @@ export const initializePayment = asyncHandler(async (req, res) => {
         gateway: normalizedGateway,
         reference: initialized.reference,
         status: initialized.status,
-        amount: snapshot.summary.totalPrice,
+        amount: initialized.amount,
+        currency: initialized.currency,
         cartId: cart._id,
         nextAction: initialized.nextAction,
+        polling: initialized.polling,
       },
     },
   });
@@ -452,145 +146,26 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     throw new AppError('gateway and reference are required', 400);
   }
 
-  const verified = await paymentService.verify({
+  const result = await verifyPaymentForUser({
     gateway: normalizedGateway,
     reference,
-  });
-
-  const transaction = await saveTransaction({
-    gateway: normalizedGateway,
-    reference: verified.reference,
-    amount: Number(verified.amount || 0),
-    currency: verified.currency || 'USD',
-    status: verified.status,
+    cartId,
     userId: req.user._id,
-    cartId: cartId || verified.cartId,
-    providerResponse: verified.raw,
   });
-
-  if (verified.status === 'successful') {
-    const finalized = await finalizeSuccessfulPayment({
-      gateway: normalizedGateway,
-      reference: verified.reference,
-      amount: Number(verified.amount || 0),
-      currency: verified.currency || 'USD',
-      providerStatus: verified.raw?.status || verified.status,
-      providerResponse: verified.raw,
-      cartId: cartId || verified.cartId,
-      userId: req.user._id,
-    });
-
-    return sendSuccess(res, {
-      message: 'Payment verified successfully',
-      data: {
-        ...(typeof finalized.transaction?.toObject === 'function'
-          ? finalized.transaction.toObject()
-          : finalized.transaction),
-        order: finalized.order,
-      },
-    });
-  }
-
-  const updatedOrder = await syncExistingOrderPayment({
-    gateway: normalizedGateway,
-    reference: verified.reference,
-    status: verified.status,
-    providerStatus: verified.raw?.status || verified.status,
-    amount: Number(verified.amount || 0),
-    currency: verified.currency || 'USD',
-    raw: verified.raw,
+  const responseData = serializeTransactionResponse(result.transaction, {
+    order: serializeDocument(result.order),
+    polling: result.verification.polling,
+    isFinal: result.verification.isFinal,
   });
 
   return sendSuccess(res, {
     message:
-      verified.status === 'refunded'
+      result.transaction.status === 'refunded'
         ? 'Payment refund recorded successfully'
-        : 'Payment verification completed',
-    data: {
-      ...(typeof transaction?.toObject === 'function' ? transaction.toObject() : transaction),
-      order: updatedOrder?.order || null,
-    },
-  });
-});
-
-export const paymentWebhook = asyncHandler(async (req, res) => {
-  const { gateway } = req.params;
-  const normalizedGateway = normalizeGateway(gateway);
-
-  const signature =
-    req.headers['stripe-signature'] ||
-    req.headers['x-paystack-signature'] ||
-    req.headers['verif-hash'];
-
-  if (!signature) {
-    throw new AppError('Missing webhook signature', 400);
-  }
-
-  const webhookData = await paymentService.verifyWebhook({
-    gateway: normalizedGateway,
-    payload: req.body,
-    signature,
-  });
-
-  if (!webhookData) {
-    return res.status(200).json({ received: true });
-  }
-
-  const existingTransaction = await Transaction.findOne({
-    gateway: normalizedGateway,
-    reference: webhookData.reference,
-  });
-
-  const userId = webhookData.userId || existingTransaction?.user;
-
-  if (!userId) {
-    throw new AppError('Unable to resolve user for webhook transaction', 400);
-  }
-
-  const transaction = await saveTransaction({
-    gateway: normalizedGateway,
-    reference: webhookData.reference,
-    amount: Number(webhookData.amount || 0),
-    currency: webhookData.currency || 'USD',
-    status: webhookData.status,
-    userId,
-    cartId: webhookData.cartId || existingTransaction?.cart,
-    providerResponse: webhookData.raw,
-  });
-
-  let updatedOrder = null;
-
-  if (webhookData.status === 'successful') {
-    const finalized = await finalizeSuccessfulPayment({
-      gateway: normalizedGateway,
-      reference: webhookData.reference,
-      amount: Number(webhookData.amount || 0),
-      currency: webhookData.currency || 'USD',
-      providerStatus: webhookData.raw?.type || webhookData.status,
-      providerResponse: webhookData.raw,
-      cartId: webhookData.cartId || existingTransaction?.cart,
-      userId,
-    });
-    updatedOrder = { order: finalized.order, transaction: finalized.transaction };
-  } else {
-    updatedOrder = await syncExistingOrderPayment({
-      gateway: normalizedGateway,
-      reference: webhookData.reference,
-      status: webhookData.status,
-      providerStatus:
-        webhookData.raw?.type || webhookData.raw?.status || webhookData.status,
-      amount: Number(webhookData.amount || 0),
-      currency: webhookData.currency || 'USD',
-      raw: webhookData.raw,
-    });
-  }
-
-  return sendSuccess(res, {
-    data: {
-      received: true,
-      transactionId: transaction._id,
-      orderId: updatedOrder?.order?._id || null,
-    },
+        : result.transaction.status === 'successful'
+          ? 'Payment verified successfully'
+          : 'Payment verification completed',
+    data: responseData,
   });
 });
 

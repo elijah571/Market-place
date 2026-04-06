@@ -3,11 +3,31 @@
   padding-bottom: 2rem;
 }
 
-.checkout-summary-pill {
-  background: var(--bg-muted);
+.checkout-subtitle {
+  margin-top: 0.9rem;
+  max-width: 42rem;
   color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.checkout-status-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.checkout-summary-pill {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-main);
   border-radius: 999px;
   padding: 0.55rem 0.9rem;
+  border: 1px solid rgba(246, 139, 30, 0.12);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+}
+
+.checkout-summary-pill--accent {
+  background: linear-gradient(135deg, rgba(246, 139, 30, 0.16), rgba(246, 139, 30, 0.06));
 }
 
 .shipping-form {
@@ -29,6 +49,26 @@
   color: var(--text-soft);
 }
 
+.checkout-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  background:
+    radial-gradient(circle at top right, rgba(246, 139, 30, 0.08), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.92));
+}
+
+.checkout-panel::after {
+  content: '';
+  position: absolute;
+  inset: auto -6rem -6rem auto;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(246, 139, 30, 0.13), rgba(246, 139, 30, 0));
+  pointer-events: none;
+}
+
 .shipping-form-grid,
 .profile-address-form-grid {
   display: grid;
@@ -41,33 +81,92 @@
   gap: 0.45rem;
 }
 
+.shipping-form-group label {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
 .shipping-form-group input,
 .profile-address-form input,
 .profile-address-form textarea {
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 0.9rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 16px;
+  padding: 0.95rem 1rem;
+  background: rgba(248, 250, 252, 0.78);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.shipping-form-group input:focus,
+.profile-address-form input:focus,
+.profile-address-form textarea:focus {
+  outline: none;
+  border-color: rgba(246, 139, 30, 0.45);
+  box-shadow: 0 0 0 4px rgba(246, 139, 30, 0.12);
+  background: white;
+}
+
+.shipping-form-group small {
+  color: var(--danger);
 }
 
 .saved-address-grid {
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   margin-bottom: 1rem;
 }
 
 .saved-address-card,
 .gateway-card {
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  background: white;
-  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 1.1rem;
   text-align: left;
   display: grid;
   gap: 0.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.saved-address-card:hover,
+.gateway-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .gateway-card.active {
-  border-color: rgba(246, 139, 30, 0.45);
-  background: rgba(246, 139, 30, 0.08);
+  border-color: rgba(246, 139, 30, 0.38);
+  background: linear-gradient(180deg, rgba(255, 248, 240, 0.96), rgba(255, 255, 255, 0.92));
+  box-shadow: 0 18px 40px rgba(246, 139, 30, 0.12);
+}
+
+.gateway-card-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.gateway-card-badge,
+.gateway-card-mode {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.gateway-card-badge {
+  background: rgba(246, 139, 30, 0.12);
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.gateway-card-mode {
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--text-soft);
 }
 
 .save-address-checkbox {
@@ -83,6 +182,48 @@
   align-self: start;
 }
 
+.checkout-aside--feature {
+  align-content: start;
+}
+
+.checkout-aside-badge {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 2rem;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  background: rgba(46, 46, 46, 0.08);
+  color: var(--secondary-main);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.checkout-feature-list,
+.checkout-meta-stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.checkout-feature-list div,
+.checkout-meta-item {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.82);
+  border: 1px solid rgba(229, 231, 235, 0.9);
+}
+
+.checkout-meta-item span {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .review-summary-list {
   display: grid;
   gap: 0.85rem;
@@ -93,7 +234,54 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.9rem 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.9);
+}
+
+.order-total-panel {
+  padding: 1.5rem;
+}
+
+.checkout-total-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.checkout-total-row,
+.checkout-grand-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.checkout-total-row {
+  color: var(--text-soft);
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.9);
+}
+
+.checkout-total-row strong {
+  color: var(--text-main);
+}
+
+.checkout-total-row--discount strong {
+  color: var(--success);
+}
+
+.checkout-grand-total {
+  margin-top: 0.5rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--secondary-main), #575757);
+  color: white;
+}
+
+.checkout-grand-total strong {
+  font-size: 1.3rem;
+}
+
+.checkout-alert-row {
+  margin-bottom: 1rem;
 }
 
 @media (max-width: 900px) {
@@ -101,5 +289,17 @@
   .shipping-form-grid,
   .profile-address-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .checkout-status-cluster {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .checkout-summary-pill {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
   }
 }

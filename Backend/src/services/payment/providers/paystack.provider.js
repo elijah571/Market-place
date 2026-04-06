@@ -1,8 +1,31 @@
 import axios from 'axios';
 import { AppError } from '../../../utils/AppError.js';
 import { buildPaymentReturnUrl } from '../paymentUrls.js';
+import {
+  createPaymentReference,
+  getPaymentRequestTimeoutMs,
+  withRetry,
+} from '../payment.helpers.js';
+import { TRANSACTION_STATUS } from '../payment.constants.js';
 
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
+const mapPaystackStatus = (status) => {
+  const normalizedStatus = String(status || '').trim().toLowerCase();
+
+  if (normalizedStatus === 'success') {
+    return TRANSACTION_STATUS.SUCCESSFUL;
+  }
+
+  if (['reversed', 'refunded'].includes(normalizedStatus)) {
+    return TRANSACTION_STATUS.REFUNDED;
+  }
+
+  if (['failed', 'abandoned'].includes(normalizedStatus)) {
+    return TRANSACTION_STATUS.FAILED;
+  }
+
+  return TRANSACTION_STATUS.PENDING;
+};
 
 const getPaystackHeaders = () => {
   if (!process.env.PAYSTACK_SECRET_KEY) {
@@ -20,26 +43,34 @@ export const paystackProvider = {
 
   async initialize({ amount, currency, email, metadata = {} }) {
     const reference =
-      metadata?.reference ||
-      `ps_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      metadata?.reference || createPaymentReference('ps');
     const callbackUrl = buildPaymentReturnUrl({
       gateway: 'paystack',
       reference,
       cartId: metadata?.cartId || '',
     });
 
-    const { data } = await axios.post(
-      `${PAYSTACK_BASE_URL}/transaction/initialize`,
-      {
-        email,
-        reference,
-        amount: Math.round(amount * 100),
-        currency,
-        metadata,
-        ...(callbackUrl ? { callback_url: callbackUrl } : {}),
-      },
-      { headers: getPaystackHeaders() }
-    );
+    const { data } = await withRetry({
+      gateway: 'paystack',
+      operation: 'initialize',
+      reference,
+      fn: () =>
+        axios.post(
+          `${PAYSTACK_BASE_URL}/transaction/initialize`,
+          {
+            email,
+            reference,
+            amount: Math.round(amount * 100),
+            currency,
+            metadata,
+            ...(callbackUrl ? { callback_url: callbackUrl } : {}),
+          },
+          {
+            headers: getPaystackHeaders(),
+            timeout: getPaymentRequestTimeoutMs(),
+          }
+        ),
+    });
 
     if (!data?.status || !data?.data?.reference || !data?.data?.authorization_url) {
       throw new AppError('Unable to initialize Paystack payment', 400);
@@ -47,19 +78,28 @@ export const paystackProvider = {
 
     return {
       reference: data.data.reference || reference,
-      status: 'pending',
+      status: TRANSACTION_STATUS.PENDING,
+      amount,
+      currency,
       raw: data,
       nextAction: {
+        type: 'redirect',
         authorizationUrl: data.data.authorization_url,
       },
     };
   },
 
   async verify({ reference }) {
-    const { data } = await axios.get(
-      `${PAYSTACK_BASE_URL}/transaction/verify/${reference}`,
-      { headers: getPaystackHeaders() }
-    );
+    const { data } = await withRetry({
+      gateway: 'paystack',
+      operation: 'verify',
+      reference,
+      fn: () =>
+        axios.get(`${PAYSTACK_BASE_URL}/transaction/verify/${reference}`, {
+          headers: getPaystackHeaders(),
+          timeout: getPaymentRequestTimeoutMs(),
+        }),
+    });
 
     const tx = data?.data;
 
@@ -69,7 +109,8 @@ export const paystackProvider = {
 
     return {
       reference: tx.reference,
-      status: tx.status === 'success' ? 'successful' : 'failed',
+      status: mapPaystackStatus(tx.status),
+      providerStatus: tx.gateway_response || tx.status || '',
       amount: Number(tx.amount || 0) / 100,
       currency: tx.currency?.toUpperCase() || 'USD',
       raw: data,
@@ -78,35 +119,10 @@ export const paystackProvider = {
     };
   },
 
-  async verifyWebhook({ payload, signature }) {
-    if (!process.env.PAYSTACK_SECRET_KEY) {
-      throw new AppError('Paystack is not configured', 500);
-    }
-
-    const crypto = await import('node:crypto');
-    const hash = crypto
-      .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
-      .update(payload)
-      .digest('hex');
-
-    if (hash !== signature) {
-      throw new AppError('Invalid Paystack webhook signature', 401);
-    }
-
-    const event = JSON.parse(payload.toString('utf8'));
-
-    if (event?.event !== 'charge.success') {
-      return null;
-    }
-
+  rehydrateInitialization({ raw }) {
     return {
-      reference: event.data.reference,
-      status: 'successful',
-      amount: Number(event.data.amount || 0) / 100,
-      currency: event.data.currency?.toUpperCase() || 'USD',
-      raw: event,
-      cartId: event.data.metadata?.cartId || '',
-      userId: event.data.metadata?.userId || '',
+      type: 'redirect',
+      authorizationUrl: raw?.data?.authorization_url || '',
     };
   },
 };

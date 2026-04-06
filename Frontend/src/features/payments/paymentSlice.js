@@ -67,6 +67,12 @@ const paymentSlice = createSlice({
       .addCase(verifyPayment.fulfilled, (state, action) => {
         state.loading = false;
         state.transaction = action.payload.data || null;
+        state.paymentData = state.paymentData
+          ? {
+              ...state.paymentData,
+              polling: action.payload.data?.polling || state.paymentData.polling || null,
+            }
+          : null;
         state.order = action.payload.data?.order || null;
       })
       .addCase(verifyPayment.rejected, (state, action) => {

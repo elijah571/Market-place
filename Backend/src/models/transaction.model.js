@@ -18,6 +18,11 @@ const transactionSchema = new mongoose.Schema(
       enum: ['pending', 'successful', 'failed', 'refunded'],
       default: 'pending',
     },
+    providerStatus: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     amount: {
       type: Number,
       required: true,
@@ -53,6 +58,27 @@ const transactionSchema = new mongoose.Schema(
     providerResponse: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
+    },
+    verificationAttempts: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    lastVerifiedAt: {
+      type: Date,
+      default: null,
+    },
+    nextVerificationAt: {
+      type: Date,
+      default: null,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    lastError: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
   },
   { timestamps: true }

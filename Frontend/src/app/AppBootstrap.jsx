@@ -5,13 +5,12 @@ import {
   hydrateCartFromStorage,
   mergeGuestCart,
 } from '../features/cart/cartSlice';
+import { CART_STORAGE_KEYS } from '../features/cart/cartPersistence';
 import {
   getRecentlyViewed,
   getWishlist,
   loadCurrentUser,
 } from '../features/users/userSlice';
-
-const CART_STORAGE_KEYS = ['cartItems', 'shippingInfo', 'promoInfo', 'cartOwner'];
 
 const AppBootstrap = () => {
   const dispatch = useDispatch();

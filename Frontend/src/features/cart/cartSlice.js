@@ -1,68 +1,30 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import apiClient from '../../utils/apiClient';
+import { persistCartState, readPersistedCartState } from './cartPersistence';
+import {
+  getCartItemKey,
+  mapServerCartItem,
+  mergeCartItemLists,
+  normalizePromoState,
+  normalizeShippingInfo,
+  sanitizeCartItems,
+  toServerPayload,
+} from './cartUtils';
 
-const CART_STORAGE_KEY = 'cartItems';
-const SHIPPING_STORAGE_KEY = 'shippingInfo';
-const PROMO_STORAGE_KEY = 'promoInfo';
-const CART_OWNER_STORAGE_KEY = 'cartOwner';
-
-const getStoredData = (key, fallback) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const getStoredOwner = () => {
-  try {
-    return localStorage.getItem(CART_OWNER_STORAGE_KEY) || null;
-  } catch {
-    return null;
-  }
-};
-
-const persistCart = (state) => {
-  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
-  localStorage.setItem(SHIPPING_STORAGE_KEY, JSON.stringify(state.shippingInfo));
-  localStorage.setItem(PROMO_STORAGE_KEY, JSON.stringify(state.promo));
-
-  if (state.ownerId) {
-    localStorage.setItem(CART_OWNER_STORAGE_KEY, state.ownerId);
-    return;
-  }
-
-  localStorage.removeItem(CART_OWNER_STORAGE_KEY);
-};
-
-const getItemKey = (item) =>
-  `${item.productId || item.product}_${item.variantId || ''}_${item.selectedColor || ''}_${item.selectedSize || ''}`;
-
-const toServerPayload = (state) => ({
-  items: state.items.map((item) => ({
-    product: item.productId || item.product,
-    quantity: item.quantity,
-    selectedColor: item.selectedColor || '',
-    selectedSize: item.selectedSize || '',
-    variantId: item.variantId || null,
-  })),
-  shippingInfo: state.shippingInfo,
-  promoCode: state.promo?.code || '',
-});
-
-const mapServerCartItem = (item) => ({
-  ...item,
-  productId: item.product,
-  stock: item.availableStock,
-});
+const persistCart = (state) =>
+  persistCartState({
+    items: state.items,
+    shippingInfo: state.shippingInfo,
+    promo: state.promo,
+    ownerId: state.ownerId,
+  });
 
 const applyServerCart = (state, payload) => {
   const cart = payload?.cart || {};
 
   state.cartId = cart._id || null;
-  state.items = (cart.items || []).map(mapServerCartItem);
-  state.shippingInfo = cart.shippingInfo || state.shippingInfo;
+  state.items = (cart.items || []).map(mapServerCartItem).filter(Boolean);
+  state.shippingInfo = normalizeShippingInfo(cart.shippingInfo || state.shippingInfo);
   state.promo = cart.summary?.promoCode
     ? {
         code: cart.summary.promoCode,
@@ -141,18 +103,8 @@ export const mergeGuestCart = createAsyncThunk(
 );
 
 const initialState = {
-  items: getStoredData(CART_STORAGE_KEY, []),
-  shippingInfo: getStoredData(SHIPPING_STORAGE_KEY, {
-    country: '',
-    state: '',
-    city: '',
-    address: '',
-    pinCode: '',
-    phoneNo: '',
-  }),
-  promo: getStoredData(PROMO_STORAGE_KEY, null),
+  ...readPersistedCartState(),
   cartId: null,
-  ownerId: getStoredOwner(),
   serverSummary: null,
   issues: [],
   syncing: false,
@@ -169,23 +121,19 @@ const cartSlice = createSlice({
   initialState,
   reducers: {
     hydrateCartFromStorage: (state) => {
-      state.items = getStoredData(CART_STORAGE_KEY, []);
-      state.shippingInfo = getStoredData(SHIPPING_STORAGE_KEY, state.shippingInfo);
-      state.promo = getStoredData(PROMO_STORAGE_KEY, null);
-      state.ownerId = getStoredOwner();
+      const storedState = readPersistedCartState();
+      state.items = storedState.items;
+      state.shippingInfo = storedState.shippingInfo;
+      state.promo = storedState.promo;
+      state.ownerId = storedState.ownerId;
+      state.cartId = null;
+      state.serverSummary = null;
+      state.issues = [];
+      state.lastSyncedAt = null;
+      state.lastError = null;
     },
     addToCart: (state, action) => {
-      const incoming = action.payload;
-      const incomingKey = getItemKey(incoming);
-      const existingIndex = state.items.findIndex(
-        (item) => getItemKey(item) === incomingKey
-      );
-
-      if (existingIndex >= 0) {
-        state.items[existingIndex].quantity += incoming.quantity;
-      } else {
-        state.items.push(incoming);
-      }
+      state.items = mergeCartItemLists(state.items, [action.payload]);
 
       state.serverSummary = null;
       state.issues = [];
@@ -194,7 +142,9 @@ const cartSlice = createSlice({
       persistCart(state);
     },
     removeFromCart: (state, action) => {
-      state.items = state.items.filter((item) => getItemKey(item) !== action.payload);
+      state.items = sanitizeCartItems(state.items).filter(
+        (item) => getCartItemKey(item) !== action.payload
+      );
       state.serverSummary = null;
       state.issues = [];
       markGuestOwned(state);
@@ -202,17 +152,20 @@ const cartSlice = createSlice({
     },
     updateCartQuantity: (state, action) => {
       const { cartKey, quantity } = action.payload;
-      const item = state.items.find((entry) => getItemKey(entry) === cartKey);
-      if (item) {
-        item.quantity = quantity;
-      }
+      state.items = sanitizeCartItems(
+        state.items.map((entry) =>
+          getCartItemKey(entry) === cartKey
+            ? { ...entry, quantity }
+            : entry
+        )
+      );
       state.serverSummary = null;
       state.issues = [];
       markGuestOwned(state);
       persistCart(state);
     },
     saveShippingInfo: (state, action) => {
-      state.shippingInfo = action.payload;
+      state.shippingInfo = normalizeShippingInfo(action.payload);
       state.serverSummary = null;
       state.issues = [];
       markGuestOwned(state);
@@ -231,7 +184,7 @@ const cartSlice = createSlice({
       state.lastError = action.payload || null;
     },
     applyPromo: (state, action) => {
-      state.promo = action.payload || null;
+      state.promo = normalizePromoState(action.payload);
       state.serverSummary = null;
       markGuestOwned(state);
       persistCart(state);
@@ -288,7 +241,10 @@ const getFallbackSubtotal = (state) =>
   state.cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
 export const cartSelectors = {
-  getItemKey,
+  getItemKey: getCartItemKey,
+  getItemCount: (state) =>
+    state.cart.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+  getDistinctItemCount: (state) => state.cart.items.length,
   getSubtotal: (state) =>
     Number(state.cart.serverSummary?.itemPrice ?? getFallbackSubtotal(state)),
   getShippingFee: (state) =>
@@ -322,6 +278,7 @@ export const cartSelectors = {
 
     return Number((subtotal + shipping + tax - discount).toFixed(2));
   },
+  getMiniCartItems: (state) => state.cart.items.slice(0, 4),
 };
 
 export const {

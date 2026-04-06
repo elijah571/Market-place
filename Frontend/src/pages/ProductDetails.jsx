@@ -145,12 +145,6 @@ const ProductDetails = () => {
   };
 
   const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      navigate('/login');
-      return;
-    }
-
     if (!product) return;
 
     if (availableVariants.length && !selectedVariant) {
@@ -172,9 +166,13 @@ const ProductDetails = () => {
       })
     );
 
-    dispatch(syncCartWithServer());
+    if (isAuthenticated) {
+      dispatch(syncCartWithServer());
+      toast.success('Added to cart and synced to your account');
+    } else {
+      toast.success('Added to cart');
+    }
 
-    toast.success('Added to cart');
     navigate('/cart');
   };
 

@@ -16,6 +16,30 @@ import { initializePayment } from '../features/payments/paymentSlice';
 import { addAddress } from '../features/users/userSlice';
 import { formatCurrency } from '../utils/formatters';
 
+const gatewayOptions = [
+  {
+    id: 'stripe',
+    label: 'Stripe',
+    mode: 'Embedded secure form',
+    description: 'Best for card payments with an in-app checkout experience.',
+    accent: 'Embedded',
+  },
+  {
+    id: 'paystack',
+    label: 'Paystack',
+    mode: 'Redirect flow',
+    description: 'A fast hosted checkout with strong support for local cards and transfers.',
+    accent: 'Hosted',
+  },
+  {
+    id: 'flutterwave',
+    label: 'Flutterwave',
+    mode: 'Redirect flow',
+    description: 'Flexible regional payment options with a hosted confirmation flow.',
+    accent: 'Flexible',
+  },
+];
+
 const Checkout = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -193,22 +217,29 @@ const Checkout = () => {
       ).unwrap();
 
       const payment = paymentResult.data?.payment;
+      const nextAction = payment?.nextAction || {};
+      const resolvedCartId = syncedCart._id || cartId;
 
-      if (gateway === 'stripe' && payment?.nextAction?.clientSecret) {
+      if (nextAction.type === 'embedded' && nextAction.clientSecret) {
         navigate(
-          `/payment?gateway=${gateway}&reference=${payment.reference}&cartId=${
-            syncedCart._id || cartId
-          }&clientSecret=${encodeURIComponent(payment.nextAction.clientSecret)}`
+          `/payment?gateway=${gateway}&reference=${payment.reference}&cartId=${resolvedCartId}&clientSecret=${encodeURIComponent(nextAction.clientSecret)}`
         );
         return;
       }
 
-      if (payment?.nextAction?.authorizationUrl) {
-        window.location.assign(payment.nextAction.authorizationUrl);
+      if (nextAction.type === 'redirect' && nextAction.authorizationUrl) {
+        window.location.assign(nextAction.authorizationUrl);
         return;
       }
 
-      toast.info('Payment initialized. Continue with verification once the gateway redirects back.');
+      if (payment?.reference) {
+        navigate(
+          `/payment-success?gateway=${gateway}&reference=${payment.reference}&cartId=${resolvedCartId}`
+        );
+        return;
+      }
+
+      toast.info('Payment initialized. Complete the flow and verify the transaction status.');
     } catch (error) {
       toast.error(error?.message || error || 'Unable to complete checkout');
     } finally {
@@ -225,20 +256,28 @@ const Checkout = () => {
           <div>
             <p className="checkout-kicker">Checkout</p>
             <h2 className="shipping-form-header">Complete your order in three guided steps</h2>
+            <p className="checkout-subtitle">
+              We lock in shipping, pricing, and payment intent details before you leave the app.
+            </p>
           </div>
-          <div className="checkout-summary-pill">
-            {cartSyncing ? 'Syncing cart...' : `${cartItems.length} items ready`}
+          <div className="checkout-status-cluster">
+            <div className="checkout-summary-pill">
+              {cartSyncing ? 'Syncing cart...' : `${cartItems.length} items ready`}
+            </div>
+            <div className="checkout-summary-pill checkout-summary-pill--accent">
+              {formatCurrency(totalPrice)} total
+            </div>
           </div>
         </div>
         {cartIssues.length > 0 && (
-          <div className="promo-active-row" style={{ marginBottom: '1rem' }}>
+          <div className="promo-active-row checkout-alert-row">
             <span>{cartIssues.map((issue) => issue.message).join(' ')}</span>
           </div>
         )}
         <form className="shipping-form" onSubmit={handleCheckout}>
           {activeStep === 0 && (
             <div className="checkout-stage-grid">
-              <div className="shipping-section">
+              <div className="shipping-section checkout-panel">
                 <div className="checkout-section-head">
                   <h3>Delivery Details</h3>
                   <p>Choose a saved address or fill in a new one.</p>
@@ -302,9 +341,22 @@ const Checkout = () => {
                   <span>Save this address for future orders</span>
                 </label>
               </div>
-              <aside className="checkout-aside">
+              <aside className="checkout-aside checkout-panel checkout-aside--feature">
+                <div className="checkout-aside-badge">Step 1</div>
                 <h3>Why this flow is faster</h3>
-                <p>Shipping, discounts, and stock are synced to the server before payment starts.</p>
+                <p>
+                  Shipping, discounts, and stock are synced to the server before payment starts.
+                </p>
+                <div className="checkout-feature-list">
+                  <div>
+                    <strong>Server-approved totals</strong>
+                    <span>We verify promos, taxes, and shipping before you proceed.</span>
+                  </div>
+                  <div>
+                    <strong>Cleaner verification</strong>
+                    <span>Your payment status is confirmed directly with the provider.</span>
+                  </div>
+                </div>
                 <button type="button" className="shipping-submit-btn" onClick={handleContinue}>
                   Continue to payment setup
                 </button>
@@ -314,21 +366,25 @@ const Checkout = () => {
 
           {activeStep === 1 && (
             <div className="checkout-stage-grid">
-              <div className="shipping-section">
+              <div className="shipping-section checkout-panel">
                 <div className="checkout-section-head">
                   <h3>Payment Setup</h3>
                   <p>Select the gateway that fits your checkout preference.</p>
                 </div>
                 <div className="gateway-grid">
-                  {['stripe', 'paystack', 'flutterwave'].map((item) => (
+                  {gatewayOptions.map((item) => (
                     <button
                       type="button"
-                      key={item}
-                      className={`gateway-card ${gateway === item ? 'active' : ''}`}
-                      onClick={() => setGateway(item)}
+                      key={item.id}
+                      className={`gateway-card ${gateway === item.id ? 'active' : ''}`}
+                      onClick={() => setGateway(item.id)}
                     >
-                      <strong>{item}</strong>
-                      <span>{item === 'stripe' ? 'Embedded secure form' : 'Gateway redirect flow'}</span>
+                      <div className="gateway-card-topline">
+                        <span className="gateway-card-badge">{item.accent}</span>
+                        <span className="gateway-card-mode">{item.mode}</span>
+                      </div>
+                      <strong>{item.label}</strong>
+                      <span>{item.description}</span>
                     </button>
                   ))}
                 </div>
@@ -341,18 +397,29 @@ const Checkout = () => {
                   </button>
                 </div>
               </div>
-              <aside className="checkout-aside">
+              <aside className="checkout-aside checkout-panel">
+                <div className="checkout-aside-badge">Step 2</div>
                 <h3>Delivery destination</h3>
                 <p>
                   {shippingInfo.address}, {shippingInfo.city}, {shippingInfo.state}, {shippingInfo.country}
                 </p>
+                <div className="checkout-meta-stack">
+                  <div className="checkout-meta-item">
+                    <span>Selected gateway</span>
+                    <strong>{gatewayOptions.find((item) => item.id === gateway)?.label || gateway}</strong>
+                  </div>
+                  <div className="checkout-meta-item">
+                    <span>Checkout total</span>
+                    <strong>{formatCurrency(totalPrice)}</strong>
+                  </div>
+                </div>
               </aside>
             </div>
           )}
 
           {activeStep === 2 && (
             <div className="checkout-stage-grid">
-              <div className="shipping-section">
+              <div className="shipping-section checkout-panel">
                 <div className="checkout-section-head">
                   <h3>Order Review</h3>
                   <p>Confirm totals, promo savings, and delivery details before payment.</p>
@@ -368,28 +435,42 @@ const Checkout = () => {
                   ))}
                 </div>
               </div>
-              <aside className="checkout-aside order-total-panel">
-                <div className="shipping-form-group">
-                  <label>Subtotal</label>
-                  <input readOnly value={formatCurrency(subtotal)} />
-                </div>
-                <div className="shipping-form-group">
-                  <label>Shipping</label>
-                  <input readOnly value={formatCurrency(shippingPrice)} />
-                </div>
-                <div className="shipping-form-group">
-                  <label>Tax</label>
-                  <input readOnly value={formatCurrency(taxPrice)} />
-                </div>
+              <aside className="checkout-aside checkout-panel order-total-panel">
+                <div className="checkout-aside-badge">Step 3</div>
+                <h3>Order total</h3>
+                <div className="checkout-total-list">
+                  <div className="checkout-total-row">
+                    <span>Subtotal</span>
+                    <strong>{formatCurrency(subtotal)}</strong>
+                  </div>
+                  <div className="checkout-total-row">
+                    <span>Shipping</span>
+                    <strong>{formatCurrency(shippingPrice)}</strong>
+                  </div>
+                  <div className="checkout-total-row">
+                    <span>Tax</span>
+                    <strong>{formatCurrency(taxPrice)}</strong>
+                  </div>
                 {discountPrice > 0 && (
-                  <div className="shipping-form-group">
-                    <label>Discount ({appliedPromo?.code})</label>
-                    <input readOnly value={`-${formatCurrency(discountPrice)}`} />
+                  <div className="checkout-total-row checkout-total-row--discount">
+                    <span>Discount ({appliedPromo?.code})</span>
+                    <strong>-{formatCurrency(discountPrice)}</strong>
                   </div>
                 )}
-                <div className="shipping-form-group">
-                  <label>Total</label>
-                  <input readOnly value={formatCurrency(totalPrice)} />
+                </div>
+                <div className="checkout-grand-total">
+                  <span>Total</span>
+                  <strong>{formatCurrency(totalPrice)}</strong>
+                </div>
+                <div className="checkout-meta-stack">
+                  <div className="checkout-meta-item">
+                    <span>Payment route</span>
+                    <strong>{gatewayOptions.find((item) => item.id === gateway)?.mode || 'Verification flow'}</strong>
+                  </div>
+                  <div className="checkout-meta-item">
+                    <span>Verification</span>
+                    <strong>Direct provider check</strong>
+                  </div>
                 </div>
                 <div className="checkout-action-row">
                   <button type="button" className="checkout-secondary-btn" onClick={() => setActiveStep(1)}>

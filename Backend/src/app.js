@@ -12,7 +12,6 @@ import userRoutes from './routes/user.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import cartRoutes from './routes/cart.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
-import paymentWebhookRoutes from './routes/paymentWebhook.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import promotionRoutes from './routes/promotion.routes.js';
 import { sanitizeRequest } from './middleware/sanitize.middleware.js';
@@ -89,13 +88,6 @@ app.use(
     },
     credentials: true,
   })
-);
-
-// Webhook endpoint needs raw payload for signature verification.
-app.use(
-  '/api/v1/payments/webhook',
-  express.raw({ type: 'application/json' }),
-  paymentWebhookRoutes
 );
 
 app.use(express.json({ limit: '10kb' }));

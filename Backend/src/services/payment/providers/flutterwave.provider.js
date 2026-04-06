@@ -1,11 +1,31 @@
 import axios from 'axios';
 import { AppError } from '../../../utils/AppError.js';
 import { buildPaymentReturnUrl } from '../paymentUrls.js';
+import {
+  createPaymentReference,
+  getPaymentRequestTimeoutMs,
+  withRetry,
+} from '../payment.helpers.js';
+import { TRANSACTION_STATUS } from '../payment.constants.js';
 
 const FLUTTERWAVE_BASE_URL = 'https://api.flutterwave.com/v3';
+const mapFlutterwaveStatus = (status) => {
+  const normalizedStatus = String(status || '').trim().toLowerCase();
 
-const getFlutterwaveWebhookSecret = () =>
-  process.env.FLUTTERWAVE_SECRET_HASH || process.env.FLUTTERWAVE_WEBHOOK_SECRET;
+  if (['successful', 'completed'].includes(normalizedStatus)) {
+    return TRANSACTION_STATUS.SUCCESSFUL;
+  }
+
+  if (normalizedStatus === 'refunded') {
+    return TRANSACTION_STATUS.REFUNDED;
+  }
+
+  if (['failed', 'cancelled', 'canceled'].includes(normalizedStatus)) {
+    return TRANSACTION_STATUS.FAILED;
+  }
+
+  return TRANSACTION_STATUS.PENDING;
+};
 
 const getFlutterwaveHeaders = () => {
   if (!process.env.FLUTTERWAVE_SECRET_KEY) {
@@ -22,7 +42,7 @@ export const flutterwaveProvider = {
   gateway: 'flutterwave',
 
   async initialize({ amount, currency, email, metadata = {} }) {
-    const txRef = `fw_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const txRef = createPaymentReference('fw');
     const redirectUrl = buildPaymentReturnUrl({
       gateway: 'flutterwave',
       reference: txRef,
@@ -30,30 +50,39 @@ export const flutterwaveProvider = {
       targetUrl: process.env.FLUTTERWAVE_REDIRECT_URL || '',
     });
 
-    const { data } = await axios.post(
-      `${FLUTTERWAVE_BASE_URL}/payments`,
-      {
-        tx_ref: txRef,
-        amount,
-        currency,
-        redirect_url:
-          redirectUrl ||
-          buildPaymentReturnUrl({
-            gateway: 'flutterwave',
-            reference: txRef,
-            cartId: metadata?.cartId || '',
-          }),
-        customer: {
-          email,
-        },
-        customizations: {
-          title: 'Order Payment',
-          description: 'Payment for order checkout',
-        },
-        meta: metadata,
-      },
-      { headers: getFlutterwaveHeaders() }
-    );
+    const { data } = await withRetry({
+      gateway: 'flutterwave',
+      operation: 'initialize',
+      reference: txRef,
+      fn: () =>
+        axios.post(
+          `${FLUTTERWAVE_BASE_URL}/payments`,
+          {
+            tx_ref: txRef,
+            amount,
+            currency,
+            redirect_url:
+              redirectUrl ||
+              buildPaymentReturnUrl({
+                gateway: 'flutterwave',
+                reference: txRef,
+                cartId: metadata?.cartId || '',
+              }),
+            customer: {
+              email,
+            },
+            customizations: {
+              title: 'Order Payment',
+              description: 'Payment for order checkout',
+            },
+            meta: metadata,
+          },
+          {
+            headers: getFlutterwaveHeaders(),
+            timeout: getPaymentRequestTimeoutMs(),
+          }
+        ),
+    });
 
     if (data?.status !== 'success' || !data?.data?.link) {
       throw new AppError('Unable to initialize Flutterwave payment', 400);
@@ -61,19 +90,31 @@ export const flutterwaveProvider = {
 
     return {
       reference: txRef,
-      status: 'pending',
+      status: TRANSACTION_STATUS.PENDING,
+      amount,
+      currency,
       raw: data,
       nextAction: {
+        type: 'redirect',
         authorizationUrl: data.data.link,
       },
     };
   },
 
   async verify({ reference }) {
-    const { data } = await axios.get(
-      `${FLUTTERWAVE_BASE_URL}/transactions/verify_by_reference?tx_ref=${reference}`,
-      { headers: getFlutterwaveHeaders() }
-    );
+    const { data } = await withRetry({
+      gateway: 'flutterwave',
+      operation: 'verify',
+      reference,
+      fn: () =>
+        axios.get(
+          `${FLUTTERWAVE_BASE_URL}/transactions/verify_by_reference?tx_ref=${reference}`,
+          {
+            headers: getFlutterwaveHeaders(),
+            timeout: getPaymentRequestTimeoutMs(),
+          }
+        ),
+    });
 
     const tx = data?.data;
 
@@ -83,7 +124,8 @@ export const flutterwaveProvider = {
 
     return {
       reference,
-      status: tx.status === 'successful' ? 'successful' : 'failed',
+      status: mapFlutterwaveStatus(tx.status),
+      providerStatus: tx.processor_response || tx.status || '',
       amount: Number(tx.amount || 0),
       currency: tx.currency?.toUpperCase() || 'USD',
       raw: data,
@@ -92,31 +134,10 @@ export const flutterwaveProvider = {
     };
   },
 
-  async verifyWebhook({ payload, signature }) {
-    const webhookSecret = getFlutterwaveWebhookSecret();
-
-    if (!webhookSecret) {
-      throw new AppError('Flutterwave webhook hash is not configured', 500);
-    }
-
-    if (signature !== webhookSecret) {
-      throw new AppError('Invalid Flutterwave webhook signature', 401);
-    }
-
-    const event = JSON.parse(payload.toString('utf8'));
-
-    if (event?.event !== 'charge.completed') {
-      return null;
-    }
-
+  rehydrateInitialization({ raw }) {
     return {
-      reference: event.data.tx_ref,
-      status: event.data.status === 'successful' ? 'successful' : 'failed',
-      amount: Number(event.data.amount || 0),
-      currency: event.data.currency?.toUpperCase() || 'USD',
-      raw: event,
-      cartId: event.data.meta?.cartId || '',
-      userId: event.data.meta?.userId || '',
+      type: 'redirect',
+      authorizationUrl: raw?.data?.link || '',
     };
   },
 };

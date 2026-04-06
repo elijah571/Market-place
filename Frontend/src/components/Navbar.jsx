@@ -16,10 +16,12 @@ import { useDebouncedValue } from '../utils/useDebouncedValue';
 const Navbar = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isCartMenuOpen, setIsCartMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const accountMenuRef = useRef(null);
+  const cartMenuRef = useRef(null);
   const { isAuthenticated, user, wishlist } = useSelector((state) => state.user);
   const cartItemsCount = useSelector((state) =>
     state.cart.items.reduce((sum, item) => sum + item.quantity, 0)
@@ -40,6 +42,7 @@ const Navbar = () => {
   const closeMenus = () => {
     setIsDrawerOpen(false);
     setIsAccountMenuOpen(false);
+    setIsCartMenuOpen(false);
   };
 
   useEffect(() => {
@@ -66,12 +69,17 @@ const Navbar = () => {
       ) {
         setIsAccountMenuOpen(false);
       }
+
+      if (cartMenuRef.current && !cartMenuRef.current.contains(event.target)) {
+        setIsCartMenuOpen(false);
+      }
     };
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsDrawerOpen(false);
         setIsAccountMenuOpen(false);
+        setIsCartMenuOpen(false);
       }
     };
 
@@ -142,10 +150,17 @@ const Navbar = () => {
   const toggleDrawer = () => {
     setIsDrawerOpen((prev) => !prev);
     setIsAccountMenuOpen(false);
+    setIsCartMenuOpen(false);
   };
 
   const toggleAccountMenu = () => {
+    setIsCartMenuOpen(false);
     setIsAccountMenuOpen((prev) => !prev);
+  };
+
+  const toggleCartMenu = () => {
+    setIsAccountMenuOpen(false);
+    setIsCartMenuOpen((prev) => !prev);
   };
 
   return (
@@ -203,6 +218,10 @@ const Navbar = () => {
               onToggleAccountMenu={toggleAccountMenu}
               onCloseMenus={closeMenus}
               accountMenuRef={accountMenuRef}
+              cartMenuRef={cartMenuRef}
+              isCartMenuOpen={isCartMenuOpen}
+              onToggleCartMenu={toggleCartMenu}
+              onCloseCartMenu={() => setIsCartMenuOpen(false)}
               isDrawerOpen={isDrawerOpen}
               onToggleDrawer={toggleDrawer}
             />

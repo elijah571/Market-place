@@ -9,6 +9,7 @@ import {
   ShoppingCartOutlined,
 } from '@mui/icons-material';
 import { NavLink } from 'react-router-dom';
+import MiniCartPopover from '../cart/MiniCartPopover';
 
 const ActionIconLink = ({ to, label, count, icon, onNavigate }) => {
   const Icon = icon;
@@ -38,6 +39,10 @@ const NavbarActions = ({
   onToggleAccountMenu,
   onCloseMenus,
   accountMenuRef,
+  cartMenuRef,
+  isCartMenuOpen,
+  onToggleCartMenu,
+  onCloseCartMenu,
   isDrawerOpen,
   onToggleDrawer,
 }) => {
@@ -50,13 +55,25 @@ const NavbarActions = ({
         icon={FavoriteBorder}
         onNavigate={onCloseMenus}
       />
-      <ActionIconLink
-        to="/cart"
-        label="Cart"
-        count={cartCount}
-        icon={ShoppingCartOutlined}
-        onNavigate={onCloseMenus}
-      />
+      <div className="navbar-account navbar-cart" ref={cartMenuRef}>
+        <button
+          type="button"
+          className={`navbar-icon-link${isCartMenuOpen ? ' is-active' : ''}`}
+          aria-label="Cart"
+          aria-haspopup="dialog"
+          aria-expanded={isCartMenuOpen}
+          aria-controls="navbar-cart-menu"
+          onClick={onToggleCartMenu}
+        >
+          <ShoppingCartOutlined fontSize="small" aria-hidden="true" />
+          {typeof cartCount === 'number' ? <span className="navbar-icon-badge">{cartCount}</span> : null}
+        </button>
+        {isCartMenuOpen ? (
+          <div id="navbar-cart-menu">
+            <MiniCartPopover onClose={onCloseCartMenu} />
+          </div>
+        ) : null}
+      </div>
 
       {isAuthenticated ? (
         <div className="navbar-account" ref={accountMenuRef}>
