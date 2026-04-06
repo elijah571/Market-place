@@ -14,26 +14,55 @@ const buildRedisUrl = () => {
     return process.env.REDIS_URL;
   }
 
-  if (!process.env.REDIS_CLOUD_URL) {
+  const host =
+    process.env.REDIS_CLOUD_URL ||
+    process.env.REDIS_HOST ||
+    process.env.REDISHOST ||
+    '';
+
+  if (!host) {
     return '';
   }
 
-  const host = process.env.REDIS_CLOUD_URL;
-  const port = process.env.REDIS_CLOUD_PORT || '6379';
-  const password = encodeURIComponent(process.env.REDIS_CLOUD_PASSWORD || '');
+  const port =
+    process.env.REDIS_CLOUD_PORT ||
+    process.env.REDIS_PORT ||
+    process.env.REDISPORT ||
+    '6379';
+  const password = encodeURIComponent(
+    process.env.REDIS_CLOUD_PASSWORD ||
+      process.env.REDIS_PASSWORD ||
+      process.env.REDISPASSWORD ||
+      ''
+  );
+  const username = encodeURIComponent(process.env.REDIS_USERNAME || 'default');
+  const useTls = parseBoolean(process.env.REDIS_TLS, false);
+  const protocol = useTls ? 'rediss' : 'redis';
 
   return password
-    ? `redis://default:${password}@${host}:${port}`
-    : `redis://${host}:${port}`;
+    ? `${protocol}://${username}:${password}@${host}:${port}`
+    : `${protocol}://${host}:${port}`;
 };
 
 const redisUrl = buildRedisUrl();
 const redisEnabled = parseBoolean(process.env.REDIS_ENABLED, Boolean(redisUrl));
 const redisRequired = parseBoolean(process.env.REDIS_REQUIRED, false);
+const rejectUnauthorized = parseBoolean(process.env.REDIS_TLS_REJECT_UNAUTHORIZED, true);
 
 let ready = false;
 
-export const redisClient = redisEnabled && redisUrl ? createClient({ url: redisUrl }) : null;
+const redisClientOptions =
+  redisEnabled && redisUrl
+    ? {
+        url: redisUrl,
+        socket:
+          redisUrl.startsWith('rediss://') || parseBoolean(process.env.REDIS_TLS, false)
+            ? { tls: true, rejectUnauthorized }
+            : undefined,
+      }
+    : null;
+
+export const redisClient = redisClientOptions ? createClient(redisClientOptions) : null;
 
 if (redisClient) {
   redisClient.on('ready', () => {

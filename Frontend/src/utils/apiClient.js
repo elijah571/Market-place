@@ -1,5 +1,38 @@
 import axios from 'axios';
 
+const ACCESS_TOKEN_STORAGE_KEY = 'marketplace.accessToken';
+
+const canUseStorage = () => typeof window !== 'undefined' && Boolean(window.localStorage);
+
+const readStoredAccessToken = () => {
+  if (!canUseStorage()) {
+    return null;
+  }
+
+  try {
+    return window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredAccessToken = (token) => {
+  if (!canUseStorage()) {
+    return;
+  }
+
+  try {
+    if (token) {
+      window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+      return;
+    }
+
+    window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors and keep the in-memory token path working.
+  }
+};
+
 const ensureApiBase = (value = '') => {
   const normalized = String(value || '').replace(/\/$/, '');
 
@@ -30,14 +63,16 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
-let accessToken = null;
+let accessToken = readStoredAccessToken();
 
 const setAccessToken = (token) => {
   accessToken = token || null;
+  writeStoredAccessToken(accessToken);
 };
 
 const clearAccessToken = () => {
   accessToken = null;
+  writeStoredAccessToken(null);
 };
 
 apiClient.interceptors.request.use((config) => {

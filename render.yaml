@@ -35,11 +35,15 @@ services:
       - key: JWT_REFRESH_MS
         value: 604800000
       - key: REDIS_ENABLED
-        value: false
+        value: true
       - key: REDIS_REQUIRED
         value: false
       - key: REDIS_URL
         sync: false
+      - key: REDIS_TLS
+        sync: false
+      - key: REDIS_TLS_REJECT_UNAUTHORIZED
+        value: true
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
