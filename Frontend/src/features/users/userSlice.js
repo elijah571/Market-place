@@ -96,6 +96,22 @@ export const getWishlist = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
     }
+  },
+  {
+    condition: (arg, { getState }) => {
+      const state = getState().user;
+      const force = Boolean(arg?.force);
+
+      if (!state.isAuthenticated || state.wishlistLoading) {
+        return false;
+      }
+
+      if (state.wishlistLoaded && !force) {
+        return false;
+      }
+
+      return true;
+    },
   }
 );
 
@@ -186,6 +202,7 @@ export const logoutUserApi = createAsyncThunk(
 const initialState = {
   user: null,
   loading: false,
+  authLoading: false,
   error: null,
   success: false,
   verifySuccess: false,
@@ -196,6 +213,8 @@ const initialState = {
   authChecked: false,
   wishlist: [],
   wishlistProducts: [],
+  wishlistLoading: false,
+  wishlistLoaded: false,
   recentlyViewed: [],
 };
 
@@ -217,11 +236,14 @@ const userSlice = createSlice({
       state.user = null;
       state.isAuthenticated = false;
       state.authChecked = true;
+      state.authLoading = false;
       state.success = false;
       state.error = null;
       clearAccessToken();
       state.wishlist = [];
       state.wishlistProducts = [];
+      state.wishlistLoading = false;
+      state.wishlistLoaded = false;
       state.recentlyViewed = [];
     },
   },
@@ -239,9 +261,12 @@ const userSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.authChecked = true;
+        state.authLoading = false;
         clearAccessToken();
         state.wishlist = [];
         state.wishlistProducts = [];
+        state.wishlistLoading = false;
+        state.wishlistLoaded = false;
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -249,7 +274,10 @@ const userSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.authChecked = true;
+        state.authLoading = false;
         state.success = false;
+        state.wishlistLoading = false;
+        state.wishlistLoaded = false;
       })
       .addCase(login.pending, (state) => {
         state.loading = true;
@@ -261,9 +289,12 @@ const userSlice = createSlice({
         state.success = action.payload.status === 'success';
         state.isAuthenticated = true;
         state.authChecked = true;
+        state.authLoading = false;
         setAccessToken(action.payload.accessToken);
         state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
         state.wishlistProducts = [];
+        state.wishlistLoading = false;
+        state.wishlistLoaded = false;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -271,14 +302,19 @@ const userSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.authChecked = true;
+        state.authLoading = false;
         state.success = false;
         clearAccessToken();
+        state.wishlistLoading = false;
+        state.wishlistLoaded = false;
       })
       .addCase(loadCurrentUser.pending, (state) => {
         state.loading = true;
+        state.authLoading = true;
       })
       .addCase(loadCurrentUser.fulfilled, (state, action) => {
         state.loading = false;
+        state.authLoading = false;
         state.user = action.payload.user;
         state.isAuthenticated = Boolean(action.payload.authenticated);
         state.authChecked = true;
@@ -289,15 +325,20 @@ const userSlice = createSlice({
         }
         state.wishlist = normalizeWishlist(action.payload.user?.wishlist);
         state.wishlistProducts = [];
+        state.wishlistLoading = false;
+        state.wishlistLoaded = false;
         state.recentlyViewed = [];
       })
       .addCase(loadCurrentUser.rejected, (state) => {
         state.loading = false;
+        state.authLoading = false;
         state.user = null;
         state.isAuthenticated = false;
         state.authChecked = true;
         state.wishlist = [];
         state.wishlistProducts = [];
+        state.wishlistLoading = false;
+        state.wishlistLoaded = false;
         state.recentlyViewed = [];
         clearAccessToken();
       })
@@ -305,11 +346,14 @@ const userSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.authChecked = true;
+        state.authLoading = false;
         state.success = false;
         state.error = null;
         clearAccessToken();
         state.wishlist = [];
         state.wishlistProducts = [];
+        state.wishlistLoading = false;
+        state.wishlistLoaded = false;
         state.recentlyViewed = [];
       })
       .addCase(verifyAccount.pending, (state) => {
@@ -356,16 +400,17 @@ const userSlice = createSlice({
         state.resetPasswordSuccess = false;
       })
       .addCase(getWishlist.pending, (state) => {
-        state.loading = true;
+        state.wishlistLoading = true;
         state.error = null;
       })
       .addCase(getWishlist.fulfilled, (state, action) => {
-        state.loading = false;
+        state.wishlistLoading = false;
+        state.wishlistLoaded = true;
         state.wishlist = normalizeWishlist(action.payload.wishlist);
         state.wishlistProducts = (action.payload.wishlist || []).filter(Boolean);
       })
       .addCase(getWishlist.rejected, (state, action) => {
-        state.loading = false;
+        state.wishlistLoading = false;
         state.error = action.payload || 'Unable to load saved products';
         state.wishlistProducts = [];
       })
@@ -375,6 +420,7 @@ const userSlice = createSlice({
       .addCase(toggleWishlist.fulfilled, (state, action) => {
         state.wishlist = normalizeWishlist(action.payload.wishlist);
         state.wishlistProducts = (action.payload.wishlist || []).filter(Boolean);
+        state.wishlistLoaded = true;
       })
       .addCase(toggleWishlist.rejected, (state, action) => {
         state.error = action.payload || 'Unable to update saved products';

@@ -5,9 +5,9 @@ import Loader from '../Loader';
 
 const AdminRoute = ({ children }) => {
   const location = useLocation();
-  const { loading, isAuthenticated, user, authChecked } = useSelector((state) => state.user);
+  const { authLoading, isAuthenticated, user, authChecked } = useSelector((state) => state.user);
 
-  if (loading || !authChecked) {
+  if (authLoading || !authChecked) {
     return <Loader />;
   }
 

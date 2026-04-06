@@ -10,11 +10,16 @@ import ProductSkeletonGrid from '../../components/ProductSkeletonGrid';
 
 const SavedProducts = ({ title = 'Saved Products', heading = 'Saved Products' }) => {
   const dispatch = useDispatch();
-  const { loading, error, wishlistProducts } = useSelector((state) => state.user);
+  const { error, isAuthenticated, wishlistLoading, wishlistLoaded, wishlistProducts } =
+    useSelector((state) => state.user);
 
   useEffect(() => {
+    if (!isAuthenticated || wishlistLoading || wishlistLoaded) {
+      return;
+    }
+
     dispatch(getWishlist());
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated, wishlistLoaded, wishlistLoading]);
 
   useEffect(() => {
     if (error) {
@@ -36,7 +41,7 @@ const SavedProducts = ({ title = 'Saved Products', heading = 'Saved Products' })
             </p>
           </div>
 
-          {loading ? (
+          {wishlistLoading ? (
             <ProductSkeletonGrid count={6} />
           ) : wishlistProducts.length > 0 ? (
             <div className="saved-products-grid">

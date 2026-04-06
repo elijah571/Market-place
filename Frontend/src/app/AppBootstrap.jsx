@@ -8,7 +8,6 @@ import {
 import { CART_STORAGE_KEYS } from '../features/cart/cartPersistence';
 import {
   getRecentlyViewed,
-  getWishlist,
   loadCurrentUser,
 } from '../features/users/userSlice';
 
@@ -23,7 +22,6 @@ const AppBootstrap = () => {
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(mergeGuestCart());
-      dispatch(getWishlist());
       dispatch(getRecentlyViewed());
       return;
     }
