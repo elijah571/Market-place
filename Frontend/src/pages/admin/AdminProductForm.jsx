@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import PageTitle from '../../components/PageTitle';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { AdminStatusBadge } from '../../components/admin/AdminStatusBadge';
 import apiClient from '../../utils/apiClient';
 import '../../AdminStyles/CreateProduct.css';
 
@@ -43,6 +45,18 @@ const AdminProductForm = () => {
   const [imagePreview, setImagePreview] = useState([]);
   const [variantImages, setVariantImages] = useState({});
 
+  const syncImagePreview = (nextPreview) => {
+    setImagePreview((prev) => {
+      prev.forEach((src) => {
+        if (src.startsWith('blob:')) {
+          URL.revokeObjectURL(src);
+        }
+      });
+
+      return nextPreview;
+    });
+  };
+
   useEffect(() => {
     const fetchProduct = async () => {
       if (!isEdit) return;
@@ -71,7 +85,7 @@ const AdminProductForm = () => {
           );
         }
 
-        setImagePreview(product.image?.map((img) => img.url) || []);
+        syncImagePreview(product.image?.map((img) => img.url) || []);
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to load product');
       } finally {
@@ -85,7 +99,9 @@ const AdminProductForm = () => {
   useEffect(() => {
     return () => {
       imagePreview.forEach((src) => {
-        if (src.startsWith('blob:')) URL.revokeObjectURL(src);
+        if (src.startsWith('blob:')) {
+          URL.revokeObjectURL(src);
+        }
       });
     };
   }, [imagePreview]);
@@ -97,14 +113,7 @@ const AdminProductForm = () => {
 
   const onVariantChange = (index, key, value) => {
     setVariants((prev) =>
-      prev.map((variant, idx) =>
-        idx === index
-          ? {
-              ...variant,
-              [key]: value,
-            }
-          : variant
-      )
+      prev.map((variant, idx) => (idx === index ? { ...variant, [key]: value } : variant))
     );
   };
 
@@ -115,11 +124,17 @@ const AdminProductForm = () => {
       if (prev.length === 1) return prev;
       return prev.filter((_, idx) => idx !== index);
     });
-    setVariantImages((prev) => {
-      const copy = { ...prev };
-      delete copy[index];
-      return copy;
-    });
+
+    setVariantImages((prev) =>
+      Object.entries(prev).reduce((next, [key, value]) => {
+        const currentIndex = Number(key);
+
+        if (currentIndex === index) return next;
+
+        next[currentIndex > index ? currentIndex - 1 : currentIndex] = value;
+        return next;
+      }, {})
+    );
   };
 
   const onFilesChange = (event) => {
@@ -129,12 +144,20 @@ const AdminProductForm = () => {
       toast.error('Each image must be 5MB or less');
       return;
     }
+
     setImageFiles(files);
-    setImagePreview(files.map((file) => URL.createObjectURL(file)));
+    syncImagePreview(files.map((file) => URL.createObjectURL(file)));
   };
 
   const removeImagePreview = (index) => {
-    setImagePreview((prev) => prev.filter((_, idx) => idx !== index));
+    setImagePreview((prev) => {
+      const target = prev[index];
+      if (target?.startsWith('blob:')) {
+        URL.revokeObjectURL(target);
+      }
+
+      return prev.filter((_, idx) => idx !== index);
+    });
     setImageFiles((prev) => prev.filter((_, idx) => idx !== index));
   };
 
@@ -144,6 +167,7 @@ const AdminProductForm = () => {
       toast.error('Each image must be 5MB or less');
       return;
     }
+
     setVariantImages((prev) => ({ ...prev, [index]: file }));
   };
 
@@ -168,6 +192,7 @@ const AdminProductForm = () => {
       if (!variant.color.trim() || !variant.size.trim()) {
         return 'Each variant requires both color and size';
       }
+
       if (Number(variant.stock) < 0) {
         return 'Variant stock cannot be negative';
       }
@@ -209,9 +234,7 @@ const AdminProductForm = () => {
       payload.append('variants', JSON.stringify(formattedVariants));
 
       imageFiles.forEach((file) => payload.append('images', file));
-      Object.entries(variantImages).forEach(([, file]) =>
-        payload.append('variantImages', file)
-      );
+      Object.entries(variantImages).forEach(([, file]) => payload.append('variantImages', file));
 
       if (isEdit) {
         await apiClient.put(`/product/${id}`, payload);
@@ -232,152 +255,250 @@ const AdminProductForm = () => {
   return (
     <>
       <PageTitle title={isEdit ? 'Update Product' : 'Create Product'} />
-      <div className="create-product-container page-shell">
-        <h2 className="form-title">{isEdit ? 'Update Product' : 'Create Product'}</h2>
-        {loading ? (
-          <p>Loading product...</p>
-        ) : (
-          <form className="product-form" onSubmit={onSubmit}>
-            <input
-              className="form-input"
-              name="name"
-              placeholder="Product name"
-              value={form.name}
-              onChange={onFieldChange}
-              required
-            />
-            <textarea
-              className="form-input"
-              name="description"
-              placeholder="Product description"
-              value={form.description}
-              onChange={onFieldChange}
-              rows={4}
-              required
-            />
-            <input
-              className="form-input"
-              name="price"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Price"
-              value={form.price}
-              onChange={onFieldChange}
-              required
-            />
-            <select
-              className="form-select"
-              name="category"
-              value={form.category}
-              onChange={onFieldChange}
-              required
-            >
-              <option value="">Select category</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            <input
-              className="form-input"
-              name="stock"
-              type="number"
-              min="0"
-              placeholder="Base stock"
-              value={form.stock}
-              onChange={onFieldChange}
-              required
-            />
+      <div className="admin-page">
+        <AdminPageHeader
+          eyebrow={isEdit ? 'Catalog update' : 'Catalog creation'}
+          title={isEdit ? 'Update Product' : 'Create Product'}
+          description="A cleaner product workspace for core info, media, and variants, with enough structure to move quickly without losing detail."
+          meta={
+            <>
+              <AdminStatusBadge tone="info">{imagePreview.length} images</AdminStatusBadge>
+              <AdminStatusBadge tone="warning">{variants.length} variants</AdminStatusBadge>
+              <AdminStatusBadge tone="success">
+                {form.category || 'Choose category'}
+              </AdminStatusBadge>
+            </>
+          }
+          actions={
+            <div className="admin-header-actions">
+              <Link className="admin-btn admin-btn--ghost" to="/admin/products">
+                Back to products
+              </Link>
+            </div>
+          }
+        />
 
-            <div className="file-input-container">
-              <label>Product Images</label>
-              <input
-                className="form-input-file"
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={onFilesChange}
-                required={!isEdit}
-              />
-              {imagePreview.length > 0 && (
-                <div className="image-preview-container">
-                  {imagePreview.map((src, index) => (
-                    <div key={`${src}-${index}`} className="preview-item">
-                      <img src={src} alt="preview" className="image-preview" />
+        {loading ? (
+          <div className="admin-loading-state surface-card">
+            <p>Loading product...</p>
+          </div>
+        ) : (
+          <form className="admin-page" onSubmit={onSubmit}>
+            <section className="admin-grid admin-grid--two">
+              <div className="admin-form-shell">
+                <div className="admin-form-shell__header">
+                  <div>
+                    <p className="admin-panel__eyebrow">Core details</p>
+                    <h2 className="admin-form-shell__title">Product information</h2>
+                  </div>
+                </div>
+
+                <div className="admin-form-grid">
+                  <div className="admin-field">
+                    <label htmlFor="product-name">Product name</label>
+                    <input
+                      id="product-name"
+                      className="admin-input"
+                      name="name"
+                      placeholder="Product name"
+                      value={form.name}
+                      onChange={onFieldChange}
+                      required
+                    />
+                  </div>
+
+                  <div className="admin-field">
+                    <label htmlFor="product-description">Description</label>
+                    <textarea
+                      id="product-description"
+                      className="admin-textarea"
+                      name="description"
+                      placeholder="Product description"
+                      value={form.description}
+                      onChange={onFieldChange}
+                      rows={5}
+                      required
+                    />
+                  </div>
+
+                  <div className="admin-form-grid admin-form-grid--two">
+                    <div className="admin-field">
+                      <label htmlFor="product-price">Price</label>
+                      <input
+                        id="product-price"
+                        className="admin-input"
+                        name="price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Price"
+                        value={form.price}
+                        onChange={onFieldChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="admin-field">
+                      <label htmlFor="product-stock">Base stock</label>
+                      <input
+                        id="product-stock"
+                        className="admin-input"
+                        name="stock"
+                        type="number"
+                        min="0"
+                        placeholder="Base stock"
+                        value={form.stock}
+                        onChange={onFieldChange}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="admin-field">
+                    <label htmlFor="product-category">Category</label>
+                    <select
+                      id="product-category"
+                      className="admin-select"
+                      name="category"
+                      value={form.category}
+                      onChange={onFieldChange}
+                      required
+                    >
+                      <option value="">Select category</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-form-shell">
+                <div className="admin-form-shell__header">
+                  <div>
+                    <p className="admin-panel__eyebrow">Media</p>
+                    <h2 className="admin-form-shell__title">Product images</h2>
+                    <p className="admin-panel__subtitle">
+                      Upload up to six images. Each image must be 5MB or less.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="admin-field">
+                  <label htmlFor="product-images">Product images</label>
+                  <input
+                    id="product-images"
+                    className="admin-input"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={onFilesChange}
+                    required={!isEdit}
+                  />
+                </div>
+
+                {imagePreview.length > 0 ? (
+                  <div className="admin-media-grid">
+                    {imagePreview.map((src, index) => (
+                      <div key={`${src}-${index}`} className="admin-image-card">
+                        <img src={src} alt={`Product preview ${index + 1}`} />
+                        <div className="admin-image-card__actions">
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn--ghost"
+                            onClick={() => removeImagePreview(index)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="admin-upload-note">Image previews will appear here after upload.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="admin-form-shell">
+              <div className="admin-form-shell__header">
+                <div>
+                  <p className="admin-panel__eyebrow">Variants</p>
+                  <h2 className="admin-form-shell__title">Stock combinations</h2>
+                  <p className="admin-panel__subtitle">
+                    Add color and size combinations with optional SKU and image overrides.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--secondary"
+                  onClick={addVariant}
+                >
+                  Add variant
+                </button>
+              </div>
+
+              <div className="admin-variant-grid">
+                {variants.map((variant, index) => (
+                  <div className="admin-variant-row" key={`variant-${index}`}>
+                    <input
+                      className="admin-input"
+                      placeholder="Color"
+                      value={variant.color}
+                      onChange={(event) => onVariantChange(index, 'color', event.target.value)}
+                    />
+                    <input
+                      className="admin-input"
+                      placeholder="Size"
+                      value={variant.size}
+                      onChange={(event) => onVariantChange(index, 'size', event.target.value)}
+                    />
+                    <input
+                      className="admin-input"
+                      type="number"
+                      min="0"
+                      placeholder="Stock"
+                      value={variant.stock}
+                      onChange={(event) => onVariantChange(index, 'stock', event.target.value)}
+                    />
+                    <input
+                      className="admin-input"
+                      placeholder="SKU (optional)"
+                      value={variant.sku}
+                      onChange={(event) => onVariantChange(index, 'sku', event.target.value)}
+                    />
+                    <div className="create-product-variant-actions">
+                      <input
+                        className="admin-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) =>
+                          onVariantImageChange(index, event.target.files?.[0])
+                        }
+                      />
                       <button
                         type="button"
-                        className="remove-preview-btn"
-                        onClick={() => removeImagePreview(index)}
+                        className="admin-btn admin-btn--danger"
+                        onClick={() => removeVariant(index)}
                       >
                         Remove
                       </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="variant-block">
-              <div className="variant-header">
-                <h3>Variants</h3>
-                <button type="button" className="variant-add-btn" onClick={addVariant}>
-                  Add Variant
-                </button>
+                  </div>
+                ))}
               </div>
-              {variants.map((variant, index) => (
-                <div className="variant-row" key={`variant-${index}`}>
-                  <input
-                    className="form-input"
-                    placeholder="Color"
-                    value={variant.color}
-                    onChange={(e) => onVariantChange(index, 'color', e.target.value)}
-                  />
-                  <input
-                    className="form-input"
-                    placeholder="Size"
-                    value={variant.size}
-                    onChange={(e) => onVariantChange(index, 'size', e.target.value)}
-                  />
-                  <input
-                    className="form-input"
-                    type="number"
-                    min="0"
-                    placeholder="Stock"
-                    value={variant.stock}
-                    onChange={(e) => onVariantChange(index, 'stock', e.target.value)}
-                  />
-                  <input
-                    className="form-input"
-                    placeholder="SKU (optional)"
-                    value={variant.sku}
-                    onChange={(e) => onVariantChange(index, 'sku', e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="variant-remove-btn"
-                    onClick={() => removeVariant(index)}
-                  >
-                    Remove
-                  </button>
-                  <label className="variant-image-upload">
-                    Variant Image
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) =>
-                        onVariantImageChange(index, event.target.files?.[0])
-                      }
-                    />
-                  </label>
-                </div>
-              ))}
-            </div>
+            </section>
 
-            <button className="submit-btn" type="submit" disabled={submitting}>
-              {submitting ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
-            </button>
+            <div className="admin-form-actions">
+              <button className="admin-btn admin-btn--primary" type="submit" disabled={submitting}>
+                {submitting ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
+              </button>
+              <Link className="admin-btn admin-btn--ghost" to="/admin/products">
+                Cancel
+              </Link>
+            </div>
           </form>
         )}
       </div>

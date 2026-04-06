@@ -15,6 +15,18 @@ export const formatDate = (value) => {
   }).format(new Date(value));
 };
 
+export const formatDateTime = (value) => {
+  if (!value) return 'N/A';
+
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+};
+
 export const formatCompactNumber = (value) =>
   new Intl.NumberFormat('en-US', {
     notation: 'compact',
@@ -22,7 +34,11 @@ export const formatCompactNumber = (value) =>
   }).format(Number(value || 0));
 
 export const sentenceCase = (value) => {
-  const text = String(value || '').trim();
+  const text = String(value || '')
+    .trim()
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ');
   if (!text) return '';
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 };
