@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Cart } from '../models/cart.model.js';
 import { Order } from '../models/order.model.js';
@@ -20,6 +19,7 @@ import {
   PAYMENT_STATUS,
   syncOrderPaymentState,
 } from '../services/commerce/order.service.js';
+import { runWithOptionalTransaction } from '../utils/mongoTransactions.js';
 
 const normalizeGateway = (gateway) => String(gateway || '').toLowerCase();
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
@@ -205,24 +205,30 @@ const finalizeSuccessfulPayment = async ({
     throw new AppError('Unable to resolve checkout cart for payment finalization', 400);
   }
 
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
-    const cart = await Cart.findOne({
+  const result = await runWithOptionalTransaction(async (session) => {
+    const activeCartQuery = Cart.findOne({
       _id: resolvedCartId,
       user: resolvedUserId,
       status: 'active',
-    }).session(session);
+    });
+
+    if (session) {
+      activeCartQuery.session(session);
+    }
+
+    const cart = await activeCartQuery;
 
     if (!cart) {
-      const convertedCart = await Cart.findOne({
+      const convertedCartQuery = Cart.findOne({
         _id: resolvedCartId,
         user: resolvedUserId,
-      })
-        .populate('convertedOrder')
-        .session(session);
+      }).populate('convertedOrder');
+
+      if (session) {
+        convertedCartQuery.session(session);
+      }
+
+      const convertedCart = await convertedCartQuery;
 
       if (convertedCart?.convertedOrder) {
         const transaction = await saveTransaction({
@@ -238,8 +244,6 @@ const finalizeSuccessfulPayment = async ({
           providerResponse,
           session,
         });
-
-        await session.commitTransaction();
 
         return {
           transaction,
@@ -282,26 +286,27 @@ const finalizeSuccessfulPayment = async ({
 
     await reserveInventoryForItems(snapshot.items, { session });
 
-    const [order] = await Order.create(
-      [
-        createOrderDocument({
-          userId: resolvedUserId,
-          cartId: cart._id,
-          snapshot,
-          payment: {
-            id: reference,
-            gateway,
-            status: PAYMENT_STATUS.PAID,
-            providerStatus,
-            amountPaid: amount,
-            currency,
-          },
-          orderStatus: 'Processing',
-          actor: 'payment_gateway',
-        }),
-      ],
-      { session }
-    );
+    const createOrderArgs = [
+      createOrderDocument({
+        userId: resolvedUserId,
+        cartId: cart._id,
+        snapshot,
+        payment: {
+          id: reference,
+          gateway,
+          status: PAYMENT_STATUS.PAID,
+          providerStatus,
+          amountPaid: amount,
+          currency,
+        },
+        orderStatus: 'Processing',
+        actor: 'payment_gateway',
+      }),
+    ];
+
+    const [order] = session
+      ? await Order.create(createOrderArgs, { session })
+      : await Order.create(createOrderArgs);
 
     cart.items = snapshot.items;
     cart.summary = snapshot.summary;
@@ -309,7 +314,7 @@ const finalizeSuccessfulPayment = async ({
     cart.status = 'converted';
     cart.convertedOrder = order._id;
     cart.lastActivityAt = new Date();
-    await cart.save({ validateBeforeSave: false, session });
+    await cart.save({ validateBeforeSave: false, ...(session ? { session } : {}) });
 
     const transaction = await Transaction.findOneAndUpdate(
       { gateway, reference },
@@ -329,20 +334,16 @@ const finalizeSuccessfulPayment = async ({
         upsert: true,
         runValidators: true,
         setDefaultsOnInsert: true,
-        session,
+        ...(session ? { session } : {}),
       }
     );
 
-    await session.commitTransaction();
-    clearCommerceCache(resolvedUserId);
-
     return { transaction, order, created: true };
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
+
+  clearCommerceCache(resolvedUserId);
+
+  return result;
 };
 
 export const initializePayment = asyncHandler(async (req, res) => {

@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { Order } from '../models/order.model.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
@@ -14,6 +13,7 @@ import {
   createOrderDocument,
   PAYMENT_STATUS,
 } from '../services/commerce/order.service.js';
+import { runWithOptionalTransaction } from '../utils/mongoTransactions.js';
 
 /* ===============================
    CREATE NEW ORDER
@@ -57,7 +57,6 @@ export const createOrder = asyncHandler(async (req, res) => {
     );
   }
 
-  const session = await mongoose.startSession();
   let order;
   const requestedPaymentStatus = String(
     paymentInfo?.status || PAYMENT_STATUS.PENDING
@@ -68,38 +67,32 @@ export const createOrder = asyncHandler(async (req, res) => {
     ? PAYMENT_STATUS.PAID
     : PAYMENT_STATUS.PENDING;
 
-  try {
-    session.startTransaction();
-
+  order = await runWithOptionalTransaction(async (session) => {
     await reserveInventoryForItems(snapshot.items, { session });
 
-    [order] = await Order.create(
-      [
-        createOrderDocument({
-          userId: req.user._id,
-          snapshot,
-          payment: {
-            id: paymentInfo?.id || '',
-            gateway: paymentInfo?.gateway || '',
-            status: normalizedPaymentStatus,
-            providerStatus: paymentInfo?.providerStatus || '',
-            currency: paymentInfo?.currency || 'USD',
-            amountPaid: isPaid ? snapshot.summary.totalPrice : 0,
-          },
-          orderStatus: isPaid ? 'Processing' : 'PendingPayment',
-          actor: 'customer',
-        }),
-      ],
-      { session }
-    );
+    const createArgs = [
+      createOrderDocument({
+        userId: req.user._id,
+        snapshot,
+        payment: {
+          id: paymentInfo?.id || '',
+          gateway: paymentInfo?.gateway || '',
+          status: normalizedPaymentStatus,
+          providerStatus: paymentInfo?.providerStatus || '',
+          currency: paymentInfo?.currency || 'USD',
+          amountPaid: isPaid ? snapshot.summary.totalPrice : 0,
+        },
+        orderStatus: isPaid ? 'Processing' : 'PendingPayment',
+        actor: 'customer',
+      }),
+    ];
 
-    await session.commitTransaction();
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+    const [createdOrder] = session
+      ? await Order.create(createArgs, { session })
+      : await Order.create(createArgs);
+
+    return createdOrder;
+  });
 
   clearOrderCache(req.user._id);
 

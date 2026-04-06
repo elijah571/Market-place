@@ -25,6 +25,7 @@ const Cart = () => {
   const cartIssues = useSelector((state) => state.cart.issues);
   const syncing = useSelector((state) => state.cart.syncing);
   const lastSyncedAt = useSelector((state) => state.cart.lastSyncedAt);
+  const lastError = useSelector((state) => state.cart.lastError);
   const { isAuthenticated } = useSelector((state) => state.user);
   const [promoCode, setPromoCode] = useState(promo?.code || '');
   const [availablePromos, setAvailablePromos] = useState([]);
@@ -157,6 +158,11 @@ const Cart = () => {
               </span>
             </div>
           )}
+          {lastError ? (
+            <div className="promo-active-row" style={{ marginBottom: '1rem' }}>
+              <span>{lastError}</span>
+            </div>
+          ) : null}
           <div className="cart-table-header">
             <span>Product</span>
             <span>Qty</span>
@@ -182,6 +188,7 @@ const Cart = () => {
                 <div className="quantity-controls">
                   <button
                     className="quantity-button"
+                    disabled={item.quantity <= 1}
                     onClick={() => handleQuantity(cartKey, item.quantity - 1, item.stock)}
                   >
                     -
@@ -189,6 +196,7 @@ const Cart = () => {
                   <input className="quantity-input" readOnly value={item.quantity} />
                   <button
                     className="quantity-button"
+                    disabled={item.quantity >= item.stock}
                     onClick={() => handleQuantity(cartKey, item.quantity + 1, item.stock)}
                   >
                     +

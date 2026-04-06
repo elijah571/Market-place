@@ -90,6 +90,11 @@ const PaymentSuccess = () => {
                   ? 'The payment did not complete. You can retry verification or return to checkout.'
                   : 'Complete the gateway flow and click verify to update your order status.'}
           </p>
+          {error ? (
+            <p className="success-para" style={{ color: '#b42318' }}>
+              {error}
+            </p>
+          ) : null}
           {!isVerified && (
             <button className="explore-btn" onClick={handleVerifyPayment} disabled={loading}>
               {loading ? 'Verifying...' : 'Verify Payment'}
