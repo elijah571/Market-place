@@ -1,12 +1,10 @@
 import { AppError } from '../utils/AppError.js';
+import {
+  doesRequestMatchAllowedFrontendOrigin,
+  getConfiguredFrontendOrigins,
+} from '../utils/frontendOrigins.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
-const getAllowedOrigins = () =>
-  String(process.env.FRONTEND_URL || '')
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
 
 export const enforceCsrfOrigin = (req, _res, next) => {
   if (SAFE_METHODS.has(req.method)) {
@@ -21,18 +19,19 @@ export const enforceCsrfOrigin = (req, _res, next) => {
 
   const origin = req.headers.origin || '';
   const referer = req.headers.referer || '';
-  const allowedOrigins = getAllowedOrigins();
+  const allowedOrigins = getConfiguredFrontendOrigins();
 
   if (!allowedOrigins.length) {
     return next();
   }
 
-  const matchesAllowedOrigin = allowedOrigins.some(
-    (allowedOrigin) =>
-      origin === allowedOrigin || referer.startsWith(`${allowedOrigin}/`) || referer === allowedOrigin
-  );
-
-  if (!matchesAllowedOrigin) {
+  if (
+    !doesRequestMatchAllowedFrontendOrigin({
+      origin,
+      referer,
+      allowedOrigins,
+    })
+  ) {
     return next(new AppError('Request origin is not allowed', 403));
   }
 

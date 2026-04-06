@@ -20,12 +20,14 @@ import errorHandler from './middleware/error.js';
 import { logger } from './utils/logger.js';
 import { isMongoReady } from './config/db.js';
 import { isRedisEnabled, isRedisReady } from './utils/redisClient.js';
+import { AppError } from './utils/AppError.js';
+import {
+  getConfiguredFrontendOrigins,
+  isAllowedFrontendOrigin,
+} from './utils/frontendOrigins.js';
 
 const app = express();
-const allowedOrigins = String(process.env.FRONTEND_URL || '')
-  .split(',')
-  .map((entry) => entry.trim())
-  .filter(Boolean);
+const allowedOrigins = getConfiguredFrontendOrigins();
 
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
 
@@ -79,12 +81,12 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      if (isAllowedFrontendOrigin(origin, allowedOrigins)) {
         callback(null, true);
         return;
       }
 
-      callback(new Error('CORS origin not allowed'));
+      callback(new AppError('CORS origin not allowed', 403));
     },
     credentials: true,
   })

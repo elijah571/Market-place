@@ -35,6 +35,7 @@ Notes:
 
 - Do not include `/api` or `/api/v1` in `VITE_API_BASE_URL`. The frontend app appends `/api/v1` automatically.
 - `FRONTEND_URL` can contain multiple comma-separated origins if you need more than one allowed frontend.
+- `FRONTEND_URL` also supports `*` wildcards for preview domains, for example `https://market-place-*.vercel.app,https://your-production-domain.vercel.app`.
 - If you are not provisioning Redis yet, keep `REDIS_ENABLED=false`.
 
 ## Render deployment

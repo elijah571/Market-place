@@ -1,10 +1,6 @@
-const getFrontendOrigins = () =>
-  String(process.env.FRONTEND_URL || '')
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+import { getPrimaryFrontendOrigin } from '../../utils/frontendOrigins.js';
 
-export const getPrimaryFrontendOrigin = () => getFrontendOrigins()[0] || '';
+export { getPrimaryFrontendOrigin } from '../../utils/frontendOrigins.js';
 
 export const buildPaymentReturnUrl = ({
   gateway = '',
