@@ -9,8 +9,98 @@
 
 .saved-products-header,
 .saved-products-empty {
-  background: white;
+  background:
+    radial-gradient(circle at top right, rgba(246, 139, 30, 0.09), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.94));
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  padding: 1.6rem;
+  border: 1px solid rgba(229, 231, 235, 0.92);
   box-shadow: var(--shadow-sm);
+}
+
+.saved-products-header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.saved-products-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 280px));
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+.saved-products-grid .product-card {
+  max-width: 280px;
+  margin-inline: auto;
+}
+
+.saved-products-grid .product-media {
+  min-height: 210px;
+}
+
+.saved-products-grid .product-image-card {
+  aspect-ratio: 1 / 0.92;
+}
+
+.saved-products-empty {
+  min-height: 24rem;
+  display: grid;
+  place-items: center;
+  padding-block: 2.2rem;
+}
+
+.saved-products-empty .no-product-content {
+  height: auto;
+  width: min(100%, 34rem);
+  padding: 0;
+}
+
+.saved-products-empty .no-products-icon {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0;
+  font-size: clamp(2.5rem, 5vw, 3.25rem);
+  color: var(--text-soft);
+}
+
+.saved-products-empty .no-products-icon h3 {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  line-height: 1.1;
+  color: var(--text-main);
+}
+
+.saved-products-empty .no-product-message {
+  max-width: 34rem;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: var(--text-soft);
+}
+
+@media (max-width: 720px) {
+  .saved-products-header,
+  .saved-products-empty {
+    padding: 1.2rem;
+  }
+
+  .saved-products-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .saved-products-grid .product-card {
+    max-width: none;
+  }
+
+  .saved-products-grid .product-media {
+    min-height: 0;
+  }
+
+  .saved-products-grid .product-image-card {
+    aspect-ratio: 1 / 1;
+  }
+
+  .saved-products-empty {
+    min-height: 19rem;
+    padding-block: 1.6rem;
+  }
 }
