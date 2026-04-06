@@ -1,8 +1,9 @@
 services:
   - type: web
-    name: marketplace-fullstack
-    env: docker
-    dockerfilePath: ./Dockerfile.fullstack
+    runtime: docker
+    name: marketplace-backend
+    rootDir: Backend
+    dockerfilePath: ./Dockerfile
     plan: starter
     autoDeploy: true
     healthCheckPath: /api/v1/ready
@@ -10,9 +11,17 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 8080
+        value: 6000
+      - key: MONGO_URI
+        sync: false
       - key: FRONTEND_URL
-        value: https://your-render-app.onrender.com
+        sync: false
+      - key: TRUST_PROXY_HOPS
+        value: 1
+      - key: COOKIE_SECURE
+        value: true
+      - key: COOKIE_SAME_SITE
+        value: none
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -25,6 +34,12 @@ services:
         value: 900000
       - key: JWT_REFRESH_MS
         value: 604800000
+      - key: REDIS_ENABLED
+        value: false
+      - key: REDIS_REQUIRED
+        value: false
+      - key: REDIS_URL
+        sync: false
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
@@ -52,4 +67,6 @@ services:
       - key: FLUTTERWAVE_WEBHOOK_SECRET
         sync: false
       - key: FLUTTERWAVE_SECRET_HASH
+        sync: false
+      - key: FLUTTERWAVE_REDIRECT_URL
         sync: false
