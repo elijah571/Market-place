@@ -45,6 +45,7 @@ Notes:
 3. Set the backend `FRONTEND_URL` to your deployed frontend URL.
 4. Set the frontend `VITE_API_BASE_URL` to your deployed backend URL.
 5. If you use Flutterwave, set `FLUTTERWAVE_REDIRECT_URL` to `https://your-frontend-domain/payment-success`.
+6. To seed production products, set backend `SEED_PRODUCT_OWNER_EMAIL` and run `npm run seed:products` from the Render backend shell as a one-off command.
 
 ## Vercel frontend + Render backend
 

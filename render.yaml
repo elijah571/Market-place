@@ -19,6 +19,10 @@ services:
         value: 6000
       - key: MONGO_URI
         sync: false
+      - key: SEED_PRODUCT_OWNER_EMAIL
+        sync: false
+      - key: SEED_PRODUCT_COUNT
+        value: 20
       - key: FRONTEND_URL
         sync: false
       - key: TRUST_PROXY_HOPS
