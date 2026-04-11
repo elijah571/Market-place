@@ -2,7 +2,6 @@ import React, { Suspense, lazy, memo, useMemo, useRef } from 'react';
 import '../pageStyles/Home.css';
 import Product from '../components/Product';
 import PageTitle from '../components/PageTitle';
-import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import ProductSkeletonGrid from '../components/ProductSkeletonGrid';
 import { Link } from 'react-router-dom';
@@ -13,14 +12,12 @@ import { useHomeCollections } from '../features/catalog/catalogQueries';
 const ImageSlider = lazy(() => import('../components/ImageSlider'));
 
 const HomeSliderSection = memo(({
-  sectionRef,
   kicker,
   heading,
   subtitle,
   products,
-  emptyMessage = 'No products to display right now.',
+  emptyMessage = 'Nothing here yet. Check back soon.',
   keyPrefix,
-  onScroll,
 }) => (
   <section className="home-section">
     <div className="home-section-top">
@@ -29,29 +26,11 @@ const HomeSliderSection = memo(({
         <h2 className="home-heading">{heading}</h2>
         {subtitle ? <p className="home-subheading">{subtitle}</p> : null}
       </div>
-      <div className="home-slider-controls">
-        <button
-          type="button"
-          className="home-slider-btn"
-          onClick={() => onScroll(sectionRef, -1)}
-          aria-label={`Scroll ${heading} left`}
-        >
-          <ChevronLeft />
-        </button>
-        <button
-          type="button"
-          className="home-slider-btn"
-          onClick={() => onScroll(sectionRef, 1)}
-          aria-label={`Scroll ${heading} right`}
-        >
-          <ChevronRight />
-        </button>
-      </div>
     </div>
 
     {products.length > 0 ? (
-      <div className="home-product-slider" ref={sectionRef}>
-        {products.map((product) => (
+      <div className="home-product-grid">
+        {products.slice(0, 3).map((product) => (
           <div className="home-product-slide" key={`${keyPrefix}-${product._id}`}>
             <Product product={product} />
           </div>
@@ -65,209 +44,169 @@ const HomeSliderSection = memo(({
 
 const Home = () => {
   const { recentlyViewed } = useSelector((state) => state.user);
-  const mostViewedRef = useRef(null);
-  const topRatedRef = useRef(null);
-  const recentlyViewedRef = useRef(null);
   const heroBackground = useMemo(() => pickRandomBackground(), []);
   const spotlightBackground = useMemo(
     () => pickRandomBackground([heroBackground]),
     [heroBackground]
   );
+
   const {
     data: sections = {
       mostViewed: [],
       topRated: [],
       meta: {
         categories: [],
-        priceRange: { min: 0, max: 0 },
       },
     },
     isLoading: loading,
   } = useHomeCollections();
 
-  const scrollSection = (sectionRef, direction) => {
-    if (!sectionRef?.current) {
-      return;
-    }
-
-    const { clientWidth } = sectionRef.current;
-    sectionRef.current.scrollBy({
-      left: direction * Math.max(clientWidth * 0.82, 280),
-      behavior: 'smooth',
-    });
-  };
-
   return (
     <>
       <PageTitle title="HOME" />
       <div className="home-page">
+
+        {/* HERO */}
         <section
           className="home-hero home-surface home-backdrop"
           style={{ '--hero-image': `url(${heroBackground})` }}
         >
           <div className="home-hero-copy">
-            <p className="home-kicker">Fresh storefront layout</p>
-            <h1>Discover fast-moving deals in a storefront that feels editorial, bright, and quick.</h1>
+            <p className="home-kicker">A better way to shop</p>
+
+            <h1>
+              Discover products that feel made for you.
+            </h1>
+
             <p className="home-hero-text">
-              Browse curated collections, save products you love, reuse saved addresses, and move
-              from discovery to payment with a more visual shopping experience.
+              A faster, cleaner shopping experience designed to help you find what matters,
+              save what you love, and check out without friction.
             </p>
-            <div className="home-hero-highlights" aria-label="Hero highlights">
-              <span>Fast checkout flow</span>
-              <span>Wishlist-first browsing</span>
-              <span>Curated collections</span>
+
+            <div className="home-hero-highlights">
+              <span>Seamless checkout</span>
+              <span>Smart recommendations</span>
+              <span>Effortless browsing</span>
             </div>
+
             <div className="home-hero-actions">
               <Link to="/products" className="home-primary-btn">
-                Shop now
+                Explore products
               </Link>
               <Link to="/favorites" className="home-secondary-btn">
-                View wishlist
+                Your wishlist
               </Link>
             </div>
+
             <div className="home-hero-stats">
               <article>
                 <strong>{formatCompactNumber(sections.mostViewed.length || 0)}+</strong>
-                <span>Trending picks</span>
+                <span>Trending now</span>
               </article>
               <article>
-                <strong>{formatCompactNumber(sections.meta.categories.length || 0)}</strong>
-                <span>Categories</span>
+                <strong>{formatCompactNumber(sections.topRated.length || 0)}+</strong>
+                <span>Top rated</span>
               </article>
               <article>
                 <strong>24/7</strong>
-                <span>Checkout availability</span>
+                <span>Always available</span>
               </article>
             </div>
           </div>
+
           <div className="home-hero-panel">
             <div
               className="hero-panel-card accent hero-panel-spotlight"
               style={{ '--spotlight-image': `url(${spotlightBackground})` }}
             >
               <div className="hero-panel-heading">
-                <span>Storefront spotlight</span>
-                <small>Updated shopping flow</small>
+                <span>Featured experience</span>
+                <small>Built for speed</small>
               </div>
-              <strong>Shoppable scenes with stronger visual rhythm</strong>
-              <p>Top viewed and top rated products are surfaced automatically for faster discovery.</p>
+
+              <strong>
+                Designed to help you decide faster.
+              </strong>
+
+              <p>
+                The products people love most are surfaced instantly — so you spend less time searching.
+              </p>
+
               <div className="hero-panel-meta">
-                <span>Top viewed</span>
-                <span>Top rated</span>
-                <span>Recently viewed</span>
+                <span>Trending</span>
+                <span>Top picks</span>
+                <span>Your history</span>
               </div>
-            </div>
-            <div className="hero-panel-grid">
-              {sections.meta.categories.slice(0, 4).map((category) => (
-                <Link
-                  key={category.label}
-                  to={`/products?category=${encodeURIComponent(category.label)}`}
-                  className="hero-category-card"
-                >
-                  <small>Browse collection</small>
-                  <strong>{category.label}</strong>
-                  <span>{category.count} products</span>
-                </Link>
-              ))}
             </div>
           </div>
         </section>
 
+        {/* FEATURE STRIP */}
         <section className="home-feature-strip">
           <article>
-            <strong>Wishlist & Recently Viewed</strong>
-            <p>Bring shoppers back with lightweight intent signals already built into the flow.</p>
+            <strong>Smarter browsing</strong>
+            <p>Everything you interact with shapes what you see next.</p>
           </article>
           <article>
-            <strong>Saved Address Checkout</strong>
-            <p>Repeat purchases are faster with reusable address cards and guided checkout steps.</p>
+            <strong>Faster checkout</strong>
+            <p>Saved details make every purchase feel instant.</p>
           </article>
           <article>
-            <strong>Analytics-Ready Admin</strong>
-            <p>Revenue, traffic, top products, and order status breakdowns now sit in one place.</p>
+            <strong>Built for clarity</strong>
+            <p>No clutter. Just products, decisions, and flow.</p>
           </article>
         </section>
 
         <div className="home-container">
-          <Suspense fallback={<div className="home-section">Loading editorial slider...</div>}>
+          <Suspense fallback={<div className="home-section">Loading experience...</div>}>
             <ImageSlider />
           </Suspense>
+
+          {/* EDITORIAL STRIP */}
           <section className="home-editorial-ribbon home-surface">
             <article>
-              <span>Curated layout</span>
-              <strong>Image-led sections make discovery feel more premium.</strong>
+              <span>Visual first</span>
+              <strong>Discover products through immersive layouts.</strong>
             </article>
             <article>
-              <span>Faster intent</span>
-              <strong>Most-viewed, top-rated, and recently-viewed products are easier to scan.</strong>
+              <span>Less searching</span>
+              <strong>We surface what matters before you ask.</strong>
             </article>
             <article>
-              <span>Checkout clarity</span>
-              <strong>Saved address flows and cart sync status stay visible while shopping.</strong>
+              <span>Frictionless</span>
+              <strong>From discovery to checkout in seconds.</strong>
             </article>
           </section>
+
           {loading ? (
             <ProductSkeletonGrid count={8} />
           ) : (
             <>
-              <section className="home-category-section">
-                <div className="home-section-top">
-                  <div className="home-section-copy">
-                    <p className="home-kicker">Browse By Category</p>
-                    <h2 className="home-heading">Start with the departments shoppers use most</h2>
-                  </div>
-                </div>
-                <div className="home-category-grid">
-                  {sections.meta.categories.map((category) => (
-                    <Link
-                      key={`grid-${category.label}`}
-                      to={`/products?category=${encodeURIComponent(category.label)}`}
-                      className="home-category-card"
-                    >
-                      <strong>{category.label}</strong>
-                      <span>{category.count} items</span>
-                      <small>
-                        {(category.subcategories || [])
-                          .slice(0, 2)
-                          .map((item) => item.label)
-                          .join(' • ') || 'Top picks inside'}
-                      </small>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-
               <HomeSliderSection
-                sectionRef={mostViewedRef}
-                kicker="Storefront Highlights"
-                heading="Most Viewed Products"
-                subtitle="Products shoppers are opening and checking out the most right now."
+                kicker="Trending now"
+                heading="Most viewed products"
+                subtitle="What everyone is checking out right now."
                 products={sections.mostViewed}
                 keyPrefix="viewed"
-                onScroll={scrollSection}
               />
 
               <HomeSliderSection
-                sectionRef={topRatedRef}
-                kicker="Customer Favorites"
-                heading="Top Rated Products"
-                subtitle="The highest-rated picks based on reviews from your customers."
+                kicker="Top picks"
+                heading="Highest rated products"
+                subtitle="Loved by customers. Proven by reviews."
                 products={sections.topRated}
                 keyPrefix="rated"
-                onScroll={scrollSection}
               />
 
-              {recentlyViewed.length > 0 &&
-                (
-                  <HomeSliderSection
-                    sectionRef={recentlyViewedRef}
-                    kicker="Just For You"
-                    heading="Recently Viewed"
-                    products={recentlyViewed}
-                    keyPrefix="recent"
-                    onScroll={scrollSection}
-                  />
-                )}
+              {recentlyViewed.length > 0 && (
+                <HomeSliderSection
+                  kicker="Pick up where you left off"
+                  heading="Recently viewed"
+                  subtitle="Your last interactions, ready when you are."
+                  products={recentlyViewed}
+                  keyPrefix="recent"
+                />
+              )}
             </>
           )}
         </div>

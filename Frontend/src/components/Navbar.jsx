@@ -162,6 +162,23 @@ const Navbar = () => {
     setIsAccountMenuOpen(false);
     setIsCartMenuOpen((prev) => !prev);
   };
+  const SidebarSection = ({ title, children }) => {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="sidebar-section">
+      <button
+        className="sidebar-section-header"
+        onClick={() => setOpen(!open)}
+      >
+        <span>{title}</span>
+        <span className={`chevron ${open ? 'open' : ''}`}>⌄</span>
+      </button>
+
+      {open && <div className="sidebar-section-content">{children}</div>}
+    </div>
+  );
+};
 
   return (
     <header className="navbar-shell">
@@ -238,129 +255,123 @@ const Navbar = () => {
         />
       ) : null}
 
-      <aside
-        id="navbar-mobile-drawer"
-        className={`navbar-drawer${isDrawerOpen ? ' is-open' : ''}`}
-        aria-hidden={!isDrawerOpen}
-      >
-        <div className="navbar-drawer-header">
-          <NavbarBrand onNavigate={closeMenus} />
-          <button
-            type="button"
-            className="navbar-drawer-close"
+     <aside className={`sidebar ${isDrawerOpen ? 'open' : ''}`}>
+  <div className="sidebar-header">
+    <NavbarBrand onNavigate={closeMenus} />
+
+    <button onClick={closeMenus} className="sidebar-close">
+      <Close fontSize="small" />
+    </button>
+  </div>
+
+  {/* USER BLOCK */}
+  <div className="sidebar-user">
+    <strong>
+      {isAuthenticated
+        ? `Hi, ${user?.name?.split(' ')[0] || 'there'}`
+        : 'Welcome'}
+    </strong>
+    <span>
+      {isAuthenticated
+        ? 'Manage your account & orders'
+        : 'Login for faster checkout'}
+    </span>
+
+    <div className="sidebar-stats">
+      <div>
+        <strong>{wishlist?.length || 0}</strong>
+        <span>Wishlist</span>
+      </div>
+      <div>
+        <strong>{cartItemsCount}</strong>
+        <span>Cart</span>
+      </div>
+    </div>
+  </div>
+
+  {/* SEARCH */}
+  <div className="sidebar-search">
+    <NavbarSearch
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      onSubmit={handleSearchSubmit}
+    />
+  </div>
+
+  {/* NAV SECTIONS */}
+  <div className="sidebar-body">
+
+    {/* PRIMARY */}
+    <SidebarSection title="Browse">
+      {drawerPrimaryLinks.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              `sidebar-item ${isActive ? 'active' : ''}`
+            }
             onClick={closeMenus}
-            aria-label="Close navigation drawer"
           >
-            <Close fontSize="small" />
-          </button>
-        </div>
-
-        <div className="navbar-drawer-body">
-          <section className="navbar-drawer-summary surface-card">
-            <div className="navbar-drawer-summary-copy">
-              <p className="navbar-drawer-summary-kicker">
-                {isAuthenticated ? 'Signed in' : 'Guest browsing'}
-              </p>
-              <strong>
-                {isAuthenticated
-                  ? `Hi, ${user?.name?.split(' ')[0] || 'there'}`
-                  : 'Browse the store faster on mobile'}
-              </strong>
-              <span>
-                {isAuthenticated
-                  ? 'Your wishlist, cart, and account shortcuts stay one tap away.'
-                  : 'Open the menu for quick access to products, cart, and account actions.'}
-              </span>
+            <Icon fontSize="small" />
+            <div>
+              <span>{item.label}</span>
+              <small>Main navigation</small>
             </div>
-            <div className="navbar-drawer-metrics">
-              <article>
-                <strong>{wishlist?.length || 0}</strong>
-                <span>Wishlist</span>
-              </article>
-              <article>
-                <strong>{cartItemsCount}</strong>
-                <span>Cart</span>
-              </article>
+          </NavLink>
+        );
+      })}
+    </SidebarSection>
+
+    {/* QUICK */}
+    <SidebarSection title="Quick Actions">
+      {drawerQuickActionLinks.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              `sidebar-item ${isActive ? 'active' : ''}`
+            }
+            onClick={closeMenus}
+          >
+            <Icon fontSize="small" />
+            <div>
+              <span>{item.label}</span>
+              <small>Shortcut</small>
             </div>
-          </section>
+          </NavLink>
+        );
+      })}
+    </SidebarSection>
 
-          <section className="navbar-drawer-section" aria-labelledby="navbar-mobile-primary">
-            <p id="navbar-mobile-primary" className="navbar-drawer-eyebrow">
-              Browse
-            </p>
-            <div className="navbar-drawer-links">
-              {drawerPrimaryLinks.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) =>
-                      `navbar-mobile-link${isActive ? ' is-active' : ''}`
-                    }
-                    onClick={closeMenus}
-                  >
-                    <Icon fontSize="small" aria-hidden="true" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                );
-              })}
+    {/* ACCOUNT */}
+    <SidebarSection title="Account">
+      {accountLinks.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              `sidebar-item ${isActive ? 'active' : ''}`
+            }
+            onClick={closeMenus}
+          >
+            <Icon fontSize="small" />
+            <div>
+              <span>{item.label}</span>
+              <small>Manage</small>
             </div>
-          </section>
+          </NavLink>
+        );
+      })}
+    </SidebarSection>
 
-          <section className="navbar-drawer-section" aria-labelledby="navbar-mobile-actions">
-            <p id="navbar-mobile-actions" className="navbar-drawer-eyebrow">
-              Quick actions
-            </p>
-            <div className="navbar-drawer-links">
-              {drawerQuickActionLinks.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `navbar-mobile-link${isActive ? ' is-active' : ''}`
-                    }
-                    onClick={closeMenus}
-                  >
-                    <Icon fontSize="small" aria-hidden="true" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="navbar-drawer-section" aria-labelledby="navbar-mobile-account">
-            <p id="navbar-mobile-account" className="navbar-drawer-eyebrow">
-              Account
-            </p>
-            <div className="navbar-drawer-links">
-              {accountLinks.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `navbar-mobile-link${isActive ? ' is-active' : ''}`
-                    }
-                    onClick={closeMenus}
-                  >
-                    <Icon fontSize="small" aria-hidden="true" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </div>
-          </section>
-        </div>
-      </aside>
+  </div>
+</aside>
     </header>
   );
 };

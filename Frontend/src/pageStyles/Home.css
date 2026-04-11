@@ -457,13 +457,10 @@
   background: var(--bg-muted);
 }
 
-.home-product-slider {
+.home-product-grid {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(260px, 320px);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
 }
 
 .home-empty-state {
