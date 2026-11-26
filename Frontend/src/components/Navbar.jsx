@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../componentStyles/Navbar.css';
-import { Close } from '@mui/icons-material';
+import { Close, CallOutlined } from '@mui/icons-material';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import NavbarBrand from './navbar/NavbarBrand';
@@ -183,7 +183,20 @@ const Navbar = () => {
   return (
     <header className="navbar-shell">
       <div className="navbar-announcement">
-        <p>Daily deals, secure checkout, and modern storefront performance in one experience.</p>
+        <div className="navbar-announcement-inner">
+          <span className="navbar-announcement-contact">
+            <CallOutlined fontSize="small" aria-hidden="true" />
+            +001 234 567 890
+          </span>
+          <p className="navbar-announcement-promo">
+            Get 50% Off on Selected Items&nbsp;
+            <NavLink to="/products">Shop Now</NavLink>
+          </p>
+          <span className="navbar-announcement-meta">
+            <button type="button">Eng</button>
+            <button type="button">Location</button>
+          </span>
+        </div>
       </div>
 
       <nav className="navbar" aria-label="Primary">

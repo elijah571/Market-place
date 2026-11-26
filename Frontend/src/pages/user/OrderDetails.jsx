@@ -66,6 +66,7 @@ const OrderDetails = () => {
         </div>
         <div className="table-block">
           <h2 className="table-title">Order Summary</h2>
+          <div className="table-scroll">
           <table className="table-main">
             <thead className="table-head">
               <tr>
@@ -98,10 +99,12 @@ const OrderDetails = () => {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
         <div className="table-block">
           <h2 className="table-title">Items</h2>
+          <div className="table-scroll">
           <table className="table-main">
             <thead className="table-head">
               <tr>
@@ -124,6 +127,7 @@ const OrderDetails = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div className="table-block">

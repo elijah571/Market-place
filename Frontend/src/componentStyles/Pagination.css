@@ -55,8 +55,8 @@
 
 .pagination-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  background-color: rgba(246, 139, 30, 0.12);
-  border-color: rgba(246, 139, 30, 0.24);
+  background-color: rgba(31, 122, 77, 0.12);
+  border-color: rgba(31, 122, 77, 0.24);
   color: var(--primary-dark);
   box-shadow: var(--shadow-sm);
 }
@@ -66,7 +66,7 @@
   color: #fff;
   border-color: transparent;
   cursor: default;
-  box-shadow: 0 14px 28px rgba(246, 139, 30, 0.22);
+  box-shadow: 0 14px 28px rgba(31, 122, 77, 0.22);
 }
 
 .pagination-btn:disabled {

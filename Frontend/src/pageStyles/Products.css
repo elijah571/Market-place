@@ -93,15 +93,15 @@
 }
 
 .products-subcategory-pill.active {
-  background: rgba(246, 139, 30, 0.12);
-  border-color: rgba(246, 139, 30, 0.28);
+  background: rgba(31, 122, 77, 0.12);
+  border-color: rgba(31, 122, 77, 0.28);
   color: var(--primary-dark);
 }
 
 .products-summary-card {
   min-width: 160px;
   text-align: center;
-  background: linear-gradient(180deg, rgba(246, 139, 30, 0.1), #fff);
+  background: linear-gradient(180deg, rgba(31, 122, 77, 0.1), #fff);
 }
 
 .products-summary-card strong {

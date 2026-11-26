@@ -2,17 +2,42 @@
   padding-top: 2rem;
 }
 
+.orders-page-header {
+  margin-bottom: 1.5rem;
+}
+
+.my-orders-container input,
+.my-orders-container select {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg-card);
+  color: var(--text-main);
+  width: 100%;
+}
+
+.my-orders-container input:focus,
+.my-orders-container select:focus {
+  outline: none;
+  border-color: var(--primary-main);
+  box-shadow: 0 0 0 3px rgba(31, 122, 77, 0.12);
+}
+
 .table-responsive {
-  background: white;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  padding: 0.5rem;
   box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .orders-table,
 .table-main {
   width: 100%;
   border-collapse: collapse;
+  min-width: 560px;
 }
 
 .orders-table th,
@@ -20,8 +45,20 @@
 .table-main th,
 .table-main td {
   text-align: left;
-  padding: 1rem 0.75rem;
+  padding: 1rem 0.9rem;
   border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.orders-table th {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.orders-table tbody tr:hover {
+  background: var(--bg-muted);
 }
 
 .order-link {
@@ -29,8 +66,23 @@
   font-weight: 700;
 }
 
+.my-orders-container button {
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  border-radius: 999px;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+}
+
+.my-orders-container button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .no-orders {
-  background: white;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 2rem;
   text-align: center;

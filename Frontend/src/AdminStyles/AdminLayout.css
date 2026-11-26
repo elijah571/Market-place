@@ -1,6 +1,6 @@
 .app-shell--admin {
   background:
-    radial-gradient(circle at top left, rgba(246, 139, 30, 0.12), transparent 24%),
+    radial-gradient(circle at top left, rgba(31, 122, 77, 0.12), transparent 24%),
     radial-gradient(circle at top right, rgba(13, 148, 136, 0.12), transparent 22%),
     linear-gradient(180deg, #fbfcff 0%, #f3f6fb 100%);
 }
@@ -24,11 +24,10 @@
 .admin-empty-state,
 .admin-form-shell,
 .admin-detail-card {
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid rgba(229, 231, 235, 0.88);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-  border-radius: 24px;
-  backdrop-filter: blur(14px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
 }
 
 .admin-sidebar {
@@ -88,14 +87,14 @@
 .admin-sidebar__link:hover,
 .admin-sidebar__link:focus-visible {
   transform: translateX(4px);
-  border-color: rgba(246, 139, 30, 0.22);
-  background: rgba(246, 139, 30, 0.08);
-  box-shadow: 0 12px 22px rgba(246, 139, 30, 0.12);
+  border-color: rgba(31, 122, 77, 0.22);
+  background: rgba(31, 122, 77, 0.08);
+  box-shadow: 0 12px 22px rgba(31, 122, 77, 0.12);
   outline: none;
 }
 
 .admin-sidebar__link.is-active {
-  background: linear-gradient(135deg, rgba(246, 139, 30, 0.14), rgba(15, 118, 110, 0.12));
+  background: linear-gradient(135deg, rgba(31, 122, 77, 0.14), rgba(15, 118, 110, 0.12));
   border-color: rgba(15, 118, 110, 0.18);
   box-shadow: 0 16px 30px rgba(15, 23, 42, 0.09);
 }
@@ -155,8 +154,8 @@
   width: 0.65rem;
   height: 0.65rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #f68b1e, #0f766e);
-  box-shadow: 0 0 0 6px rgba(246, 139, 30, 0.1);
+  background: linear-gradient(135deg, #1f7a4d, #0f766e);
+  box-shadow: 0 0 0 6px rgba(31, 122, 77, 0.1);
 }
 
 .admin-sidebar__footer-links {
@@ -345,14 +344,14 @@
 }
 
 .admin-btn--secondary {
-  background: linear-gradient(135deg, #f68b1e, #ffb454);
-  color: #fffdf9;
-  box-shadow: 0 16px 28px rgba(246, 139, 30, 0.22);
+  background: linear-gradient(135deg, #1f7a4d, #58b487);
+  color: #f7fbf8;
+  box-shadow: 0 16px 28px rgba(31, 122, 77, 0.22);
 }
 
 .admin-btn--secondary:hover:not(:disabled),
 .admin-btn--secondary:focus-visible:not(:disabled) {
-  box-shadow: 0 20px 36px rgba(246, 139, 30, 0.26);
+  box-shadow: 0 20px 36px rgba(31, 122, 77, 0.26);
 }
 
 .admin-btn--ghost {
@@ -390,7 +389,7 @@
 }
 
 .admin-badge--warning {
-  background: rgba(245, 158, 11, 0.16);
+  background: rgba(20, 92, 57, 0.16);
   color: #b45309;
 }
 
@@ -533,7 +532,7 @@
 .admin-progress-row__bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #f68b1e, #0f766e);
+  background: linear-gradient(90deg, #1f7a4d, #0f766e);
 }
 
 .admin-mini-chart {
@@ -568,7 +567,7 @@
 .admin-mini-chart__bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #111827, #f68b1e);
+  background: linear-gradient(90deg, #111827, #1f7a4d);
 }
 
 .admin-media-grid {

@@ -144,7 +144,7 @@ const ProductDetails = () => {
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = ({ redirect } = {}) => {
     if (!product) return;
 
     if (availableVariants.length && !selectedVariant) {
@@ -173,7 +173,9 @@ const ProductDetails = () => {
       toast.success('Added to cart');
     }
 
-    navigate('/cart');
+    if (redirect) {
+      navigate(redirect);
+    }
   };
 
   const handleSubmitReview = async (event) => {
@@ -310,28 +312,37 @@ const ProductDetails = () => {
                   </div>
                 )}
 
+                <div className="product-buy-row">
+                  <button
+                    className="buy-now-btn"
+                    disabled={availableStock === 0 || cartSyncing}
+                    onClick={() => handleAddToCart({ redirect: '/cart' })}
+                  >
+                    Buy Now
+                  </button>
+                  <button
+                    className="add-to-cart-btn"
+                    disabled={availableStock === 0 || cartSyncing}
+                    onClick={() => handleAddToCart()}
+                  >
+                    {cartSyncing ? 'Updating Cart...' : 'Add to Cart'}
+                  </button>
+                </div>
+
                 <div className="product-benefits-grid">
+                  <article>
+                    <strong>Free Delivery</strong>
+                    <span>Enter your postal code for delivery availability</span>
+                  </article>
+                  <article>
+                    <strong>Return Delivery</strong>
+                    <span>Free 30-day returns. Details on checkout</span>
+                  </article>
                   <article>
                     <strong>Secure checkout</strong>
                     <span>Stripe, Paystack, and Flutterwave support</span>
                   </article>
-                  <article>
-                    <strong>Flexible delivery</strong>
-                    <span>Saved address support and guided checkout steps</span>
-                  </article>
-                  <article>
-                    <strong>Easy re-discovery</strong>
-                    <span>Recently viewed and wishlist sync with your account</span>
-                  </article>
                 </div>
-
-                <button
-                  className="add-to-cart-btn"
-                  disabled={availableStock === 0 || cartSyncing}
-                  onClick={handleAddToCart}
-                >
-                  {cartSyncing ? 'Updating Cart...' : 'Add to Cart'}
-                </button>
 
                 <form className="review-form" onSubmit={handleSubmitReview}>
                   <h3>Write a Review</h3>

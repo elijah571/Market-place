@@ -64,8 +64,8 @@
 
 .input-group input:focus {
   outline: none;
-  border-color: rgba(246, 139, 30, 0.45);
-  box-shadow: 0 0 0 4px rgba(246, 139, 30, 0.12);
+  border-color: rgba(31, 122, 77, 0.45);
+  box-shadow: 0 0 0 4px rgba(31, 122, 77, 0.12);
 }
 
 .avatar-group {
@@ -91,12 +91,12 @@
   height: 4rem;
   object-fit: cover;
   border-radius: 999px;
-  border: 2px solid rgba(246, 139, 30, 0.28);
+  border: 2px solid rgba(31, 122, 77, 0.28);
 }
 
 .authBtn {
   width: 100%;
-  background: linear-gradient(135deg, var(--primary-main), var(--primary-dark));
+  background: var(--primary-main);
   color: white;
   border: none;
   padding: 0.95rem 1.1rem;
@@ -141,7 +141,7 @@
   display: grid;
   grid-template-columns: 1.08fr minmax(22rem, 34rem);
   background:
-    radial-gradient(circle at top left, rgba(246, 139, 30, 0.16), transparent 26%),
+    radial-gradient(circle at top left, rgba(31, 122, 77, 0.16), transparent 26%),
     linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
 }
 
@@ -172,7 +172,7 @@
   width: 14rem;
   height: 14rem;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(246, 139, 30, 0.35), rgba(246, 139, 30, 0));
+  background: radial-gradient(circle, rgba(31, 122, 77, 0.35), rgba(31, 122, 77, 0));
   z-index: -1;
 }
 

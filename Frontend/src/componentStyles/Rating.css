@@ -1,27 +1,32 @@
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05rem;
+  line-height: 1;
+}
 
-  .star {
-    font-size: 1.5rem;
-    cursor: pointer;
-    transition: color 0.3s ease, transform 0.3s ease;
-    color: var(--text-secondary);
-  }
-  
-  .star.filled {
-    color: var(--primary-main); 
-  }
-  
-  .star.empty {
-    color: var(--text-secondary); 
-  }
-  
-  .star:hover {
-    transform: scale(1.2); 
-    color: var(--primary-main); 
-  }
-  
-  .productCardSpan {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-left: 0.5rem;
-  }
-  
+.star {
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+  color: #d7ddd9;
+}
+
+.star.filled {
+  color: var(--rating);
+}
+
+.star.empty {
+  color: #d7ddd9;
+}
+
+.star:hover {
+  transform: scale(1.15);
+  color: var(--rating);
+}
+
+.productCardSpan {
+  font-size: 0.9rem;
+  color: var(--text-soft);
+  margin-left: 0.5rem;
+}

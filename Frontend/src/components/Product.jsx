@@ -1,15 +1,17 @@
 import React, { memo, useMemo } from 'react';
 import '../componentStyles/Product.css';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Rating from './Rating';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleWishlist } from '../features/users/userSlice';
+import { addToCart, syncCartWithServer } from '../features/cart/cartSlice';
 import { toast } from 'react-toastify';
-import { Favorite, FavoriteBorder, VisibilityOutlined } from '@mui/icons-material';
-import { formatCompactNumber, formatCurrency } from '../utils/formatters';
+import { Favorite, FavoriteBorder } from '@mui/icons-material';
+import { formatCurrency } from '../utils/formatters';
 
 const Product = ({ product }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { isAuthenticated, wishlist } = useSelector((state) => state.user);
   const inWishlist = useMemo(
     () =>
@@ -30,7 +32,38 @@ const Product = ({ product }) => {
   };
 
   const productImage = product.image?.[0]?.url || '/images/banner1.jpeg';
-  const oldPrice = Number(product.price || 0) * 1.08;
+
+  const handleAddToCart = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (product.stock <= 0) {
+      toast.error('This item is out of stock');
+      return;
+    }
+
+    if (product.variants?.length) {
+      navigate(`/product/${product._id}`);
+      return;
+    }
+
+    dispatch(
+      addToCart({
+        productId: product._id,
+        name: product.name,
+        image: productImage,
+        price: product.price,
+        quantity: 1,
+        stock: product.stock,
+        variantId: null,
+      })
+    );
+
+    if (isAuthenticated) {
+      dispatch(syncCartWithServer());
+    }
+    toast.success('Added to cart');
+  };
 
   return (
     <Link to={`/product/${product._id}`} className="product_id">
@@ -43,7 +76,6 @@ const Product = ({ product }) => {
             loading="lazy"
             decoding="async"
           />
-          <span className="product-badge">{product.category || 'Featured'}</span>
           <button
             type="button"
             className={`product-save-icon ${inWishlist ? 'active' : ''}`}
@@ -53,30 +85,30 @@ const Product = ({ product }) => {
             {inWishlist ? <Favorite fontSize="small" /> : <FavoriteBorder fontSize="small" />}
           </button>
         </div>
+
         <div className="product-details">
-          <p className="product-category-label">{product.subcategory || product.category}</p>
-          <h3 className="product-title">{product.name}</h3>
-          <p className="home-price">{formatCurrency(product.price)}</p>
-          <p className="product-old-price">{formatCurrency(oldPrice)}</p>
+          <div className="product-top-row">
+            <h3 className="product-title">{product.name}</h3>
+            <p className="product-price">{formatCurrency(product.price)}</p>
+          </div>
+
+          <p className="product-desc">
+            {product.description || product.subcategory || product.category || 'Quality you can trust'}
+          </p>
+
           <div className="rating_continers">
             <Rating value={product.rating || 0} disabled={true} />
-            <span className="product-review-count">
-              ({product.numOfReviews || 0} {product.numOfReviews === 1 ? 'review' : 'reviews'})
-            </span>
+            <span className="product-review-count">({product.numOfReviews || 0})</span>
           </div>
-          <div className="product-meta-row">
-            <span>{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</span>
-            <span>
-              <VisibilityOutlined fontSize="inherit" />
-              {formatCompactNumber(product.viewCount || 0)}
-            </span>
-          </div>
-          <div className="product-actions">
-            <button className="add-to-cart">View Details</button>
-            <span className={`product-save-state ${inWishlist ? 'active' : ''}`}>
-              {inWishlist ? 'Saved' : 'Tap icon to save'}
-            </span>
-          </div>
+
+          <button
+            type="button"
+            className="add-to-cart"
+            onClick={handleAddToCart}
+            disabled={product.stock <= 0}
+          >
+            {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+          </button>
         </div>
       </div>
     </Link>

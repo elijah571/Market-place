@@ -17,7 +17,7 @@
   width: 140px;
   height: 140px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-main), #ffc06c);
+  background: linear-gradient(135deg, var(--primary-main), #6cc096);
   display: grid;
   place-items: center;
   color: white;
